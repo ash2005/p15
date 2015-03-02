@@ -17,10 +17,10 @@ public class AuthenticationObject extends ASN1Type{
 	/*ASN1 structure for CommonObjectAttributes*/
 	public CommonObjectAttributes commonObjectAttributes = null;
 	
-	/*ASN1 structure for CommonCertificateAttributes*/
+	/*ASN1 structure for CommonAuthenticationObjectAttributes*/
 	public CommonAuthenticationObjectAttributes classAtributes = null;
 	
-	/*ASN1 structure for X509CertificiateAttributes*/
+	/*ASN1 structure for PinAttributes*/
 	public PinAttributes typeAttribute = null;
 
 		

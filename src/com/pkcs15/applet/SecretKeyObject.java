@@ -19,10 +19,10 @@ public class SecretKeyObject extends ASN1Type {
 	/*ASN1 structure for CommonKeyAttributes*/
 	public CommonKeyAttributes classAtributes = null;
 	
-	/*ASN1 structure for CommonPrivateKeyAttributes*/
+	/*ASN1 structure for CommonSecretKeyAttributes*/
 	public CommonSecretKeyAttributes subClassAttributes = null;
 	
-	/*ASN1 structure for PrivateRsaKeyAtribute*/
+	/*ASN1 structure for GenericSecretKeyAtributes*/
 	public GenericSecretKeyAttributes typeAttribute = null;
 	
 	public byte[] encoding =null;

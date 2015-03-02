@@ -16,10 +16,10 @@ public class DataObject extends ASN1Type {
 	/*ASN1 structure for CommonObjectAttributes*/
 	public CommonObjectAttributes commonObjectAttributes = null;
 	
-	/*ASN1 structure for CommonCertificateAttributes*/
+	/*ASN1 structure for CommonDataObjectAttributes*/
 	public CommonDataObjectAttributes classAtributes = null;
 	
-	/*ASN1 structure for X509CertificiateAttributes*/
+	/*ASN1 structure for Opaque*/
 	public Opaque typeAttribute = null;
 
 		

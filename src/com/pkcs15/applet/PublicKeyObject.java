@@ -18,10 +18,10 @@ public class PublicKeyObject extends ASN1Type{
 	/*ASN1 structure for CommonKeyAttributes*/
 	public CommonKeyAttributes classAtributes = null;
 	
-	/*ASN1 structure for CommonPrivateKeyAttributes*/
+	/*ASN1 structure for CommonPublicKeyAttributes*/
 	public CommonPublicKeyAttributes subClassAttributes = null;
 	
-	/*ASN1 structure for PrivateRsaKeyAtribute*/
+	/*ASN1 structure for PublicRsaKeyAtribute*/
 	public PublicRSAKeyAttributes typeAttribute = null;
 	
 	public byte[] encoding =null;
