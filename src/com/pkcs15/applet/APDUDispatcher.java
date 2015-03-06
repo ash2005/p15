@@ -7,11 +7,15 @@ import javacard.framework.JCSystem;
 import javacard.framework.OwnerPIN;
 import javacard.framework.SystemException;
 import javacard.framework.Util;
+import javacard.security.AESKey;
+import javacard.security.DESKey;
+import javacard.security.Key;
 import javacard.security.KeyBuilder;
 import javacard.security.KeyPair;
 import javacard.security.RSAPrivateKey;
 import javacard.security.RSAPublicKey;
 import javacard.security.RandomData;
+import javacardx.crypto.Cipher;
 
 
 /**
@@ -49,12 +53,13 @@ public class APDUDispatcher {
 	
 	
 	/* Proprietary instructions bytes*/
-	public static final byte INS_TRANSFER_DATA_PUT   = (byte) 0x02;
-	public static final byte INS_TRANSFER_DATA_GET   = (byte) 0x04;
-	public static final byte INS_SETUP				 = (byte) 0x06;
-	public static final byte INS_GET_RANDOM_DATA     = (byte) 0x07;
-	public static final byte INS_GENERATE_SECRET_KEY = (byte) 0x08;
-	public static final byte INS_GENERATE_KEY_PAIR   = (byte) 0x09;
+	public static final byte INS_TRANSFER_DATA_PUT   	   	   = (byte) 0x02;
+	public static final byte INS_TRANSFER_DATA_GET   	   	   = (byte) 0x04;
+	public static final byte INS_SETUP				       	   = (byte) 0x06;
+	public static final byte INS_GET_RANDOM_DATA               = (byte) 0x07;
+	public static final byte INS_GENERATE_SECRET_KEY 	   	   = (byte) 0x08;
+	public static final byte INS_GENERATE_KEY_PAIR         	   = (byte) 0x09;
+	public static final byte INS_SYMMETRIC_ECB_ENCRYPT_DECRPYT = (byte) 0x0A;
 	
 
 	private static final byte INS_DEBUG = (byte)0xFF;
@@ -131,6 +136,8 @@ public class APDUDispatcher {
 						case INS_GENERATE_KEY_PAIR: generateKeyPair(applet,apdu);
 													break;
 													
+						case INS_SYMMETRIC_ECB_ENCRYPT_DECRPYT: symmetricEcbEncryptDecrypt(applet,apdu);
+													break;
 						case INS_DEBUG: 
 																									    
 //													Certificate cert = new Certificate(IODataManager.getBuffer());
@@ -188,6 +195,150 @@ public class APDUDispatcher {
 						}
 	}
 
+	
+/**
+ * This method handles the SYMMETRIC_ECB_ENCRYPT_DECRYPT command
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	
+	short idSize = (short) (buffer[ISO7816.OFFSET_P2] & 0x00FF);
+	byte[] keyId = null;
+	byte alg = (byte)0x00;
+	
+	//Extract parameters from data field
+	try {
+	keyId = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+    Util.arrayCopy(buffer,offset, keyId, (short)0, idSize);
+	}
+	catch (SystemException e){
+		ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+	}
+	
+	offset += idSize;
+	alg = (byte) buffer[offset++];
+	short inputSize = (short) (alg & 0x00FF);
+	
+	//Search secret key by ID
+    SecretKeyObject key = applet.secKeyDirFile.getRecord(keyId);
+    if (key == null)
+    	   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+    
+    //Check if the key is private - protected by PIN and verify that the authentication was previously made
+    key.decode();
+    if (key.commonObjectAttributes.flags.privateFlag == true)
+    		{
+    			if (applet.getPins()[0].isValidated() == false)
+    				     {
+    						key.encode();
+    						key.freeMembers();
+    				        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+    				     }
+    		}
+    
+    Cipher symmetricCipher = null;
+    Key symKey = null;
+    
+    if (alg == (byte) 0x10)  // AES 128 bit input block
+    	  {
+    	      symmetricCipher = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_ECB_NOPAD, false);
+    	      if (key.subClassAttributes.keyLen.val.length == (short)2 )  // check if key length is 256 bits
+    	      		{
+    	    	  		if ((key.subClassAttributes.keyLen.val[0] != (byte) 0x01) ||
+    	    	  			(key.subClassAttributes.keyLen.val[1] != (byte) 0x00))
+    	    	  				{
+    	    	  				  key.encode();
+    	    	  				  key.freeMembers();
+    	    	  				  ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	    	  				}
+    	    	  		symKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_256, false);
+    	    	  		((AESKey)symKey).setKey(key.typeAttribute.value.val,(short)0);
+    	    	  		
+    	      		}
+    	      else if (key.subClassAttributes.keyLen.val.length == (short)1 )
+    	      		{
+    	    	       if (key.subClassAttributes.keyLen.val[0] == (byte) 0xC0) // check if key length is 192 bits
+    	    	    	       symKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_192, false);
+    	    	       else if (key.subClassAttributes.keyLen.val[0] == (byte) 0x80) // check if key length is 128 bits
+    	    	    	       symKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_128, false);
+    	    	       else 
+    	    	       	{
+    	    	    	   key.encode();
+    	    	    	   key.freeMembers();
+    	    	    	   ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	    	       	}
+    	    	       
+    	    	        ((AESKey)symKey).setKey(key.typeAttribute.value.val, (short)0);
+    	    	       
+    	      		}  	      
+    	      else 
+    	      		{
+    	    	      key.encode();
+    	    	      key.freeMembers();
+    	    	      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	      		}
+    	  }
+    else if (alg == (byte) 0x08 )  // DES or 3DES 64/128/192 bit input block
+    	  {
+    	      symmetricCipher = Cipher.getInstance(Cipher.ALG_DES_ECB_NOPAD,false);
+    	      if (key.subClassAttributes.keyLen.val.length == (short) 1) 
+    	      		{
+    	    	  		if (key.subClassAttributes.keyLen.val[0] == (byte) 0x40) // check if key length is 64 bits
+    	    	  			  symKey = (DESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_DES_TRANSIENT_RESET, KeyBuilder.LENGTH_DES, false);
+    	    	  		else if (key.subClassAttributes.keyLen.val[0] == (byte) 0x80) // check if key length is 128 bits
+    	    	  			  symKey = (DESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_DES_TRANSIENT_RESET, KeyBuilder.LENGTH_DES3_2KEY, false);
+    	    	  		else if  (key.subClassAttributes.keyLen.val[0] == (byte) 0xC0) // check if key length is 192 bits
+    	    	  			  symKey = (DESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_DES_TRANSIENT_RESET, KeyBuilder.LENGTH_DES3_3KEY, false);
+    	    	  		else 
+    	    	  				{
+    	    	  					key.encode();
+    	    	  					key.freeMembers();
+    	    	  					ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	    	  				}
+    	    	  		
+    	    	  		((DESKey) symKey).setKey(key.typeAttribute.value.val, (short)0);
+    	      		}
+    	      else 
+    	      		{
+    	    	      key.encode();
+    	    	      key.freeMembers();
+    	    	      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	      		}
+    	  }
+    else 
+    	{
+    	 key.encode();
+    	 key.freeMembers();
+    	 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+    	}
+    
+    key.encode();
+    key.freeMembers();
+    
+    
+    if ( buffer[ISO7816.OFFSET_P1] == (byte) 0x00) // Encrypt operation
+    		symmetricCipher.init(symKey, Cipher.MODE_ENCRYPT);
+       
+    else if ( buffer[ISO7816.OFFSET_P1] == (byte) 0xFF) // Decrypt operation
+    	    symmetricCipher.init(symKey, Cipher.MODE_DECRYPT);
+    else 
+    	  ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+    	
+    
+    IODataManager.prepareBuffer(inputSize);
+    symmetricCipher.doFinal(buffer,offset, inputSize, IODataManager.getBuffer(), (short)0);
+    symKey.clearKey();
+    IODataManager.sendData(apdu);
+    
+
+}	
+	
+	
+	
 /**
  * This method handles the GENERATE_KEY_PAIR command
  * @param applet PKCS15Applet instance
