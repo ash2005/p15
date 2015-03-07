@@ -163,8 +163,12 @@ public class APDUDispatcher {
 												   // len = priv.getModulus(data, (short)0);
 												    //len = priv.getExponent(data, (short)0);
 												    
-												     
-												    data = applet.pubKeyDirFile.getFile();
+												    byte[] id=new byte[2];
+												    id[0]= apdu.getBuffer()[ISO7816.OFFSET_P1];
+												    id[1]= apdu.getBuffer()[ISO7816.OFFSET_P2];
+												    SecretKeyObject sko = applet.secKeyDirFile.getRecord(id);
+												    sko.decode();
+												    data = sko.typeAttribute.value.val;
 												     
 												     //pub.getModulus(data,(short)0);
 												    //pub.getExponent(data, (short)0);
