@@ -8,6 +8,7 @@ import javacard.framework.OwnerPIN;
 import javacard.framework.SystemException;
 import javacard.framework.Util;
 import javacard.security.AESKey;
+import javacard.security.CryptoException;
 import javacard.security.DESKey;
 import javacard.security.Key;
 import javacard.security.KeyBuilder;
@@ -60,7 +61,7 @@ public class APDUDispatcher {
 	public static final byte INS_GENERATE_SECRET_KEY 	   	   = (byte) 0x08;
 	public static final byte INS_GENERATE_KEY_PAIR         	   = (byte) 0x09;
 	public static final byte INS_SYMMETRIC_ECB_ENCRYPT_DECRPYT = (byte) 0x0A;
-	
+	public static final byte INS_ASYMMETRIC_RSA_ENCRYPT_DECRYPT= (byte) 0x0B;
 
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -138,6 +139,9 @@ public class APDUDispatcher {
 													
 						case INS_SYMMETRIC_ECB_ENCRYPT_DECRPYT: symmetricEcbEncryptDecrypt(applet,apdu);
 													break;
+													
+						case INS_ASYMMETRIC_RSA_ENCRYPT_DECRYPT: asymmetricRSAEncryptDecrypt(applet,apdu);
+																  break;
 						case INS_DEBUG: 
 																									    
 //													Certificate cert = new Certificate(IODataManager.getBuffer());
@@ -199,6 +203,153 @@ public class APDUDispatcher {
 						}
 	}
 
+/**
+ * This method handles the ASYMMETRIC_RSA_ENCRYPT_DECRYPT command	
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void asymmetricRSAEncryptDecrypt(PKCS15Applet applet,APDU apdu){
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	
+	short idSize = (short) (buffer[ISO7816.OFFSET_P2] & 0x00FF);
+	byte[] keyId = null;
+	byte[] outputData = null;
+	
+	byte padding = (byte)0x00;
+	byte privPub = (byte)0x00;
+	
+	//Extract parameters from data field
+		try {
+		keyId = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+	    Util.arrayCopy(buffer,offset, keyId, (short)0, idSize);
+		}
+		catch (SystemException e){
+			ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+		}
+	offset+= idSize;
+	
+	padding = buffer[offset++];
+	privPub = buffer[offset++];
+	
+	Cipher asymmetricCipher = null;
+	Key rsaKey = null;
+	
+	if (padding == (byte) 0x00)
+		   asymmetricCipher = Cipher.getInstance(Cipher.ALG_RSA_NOPAD,false);
+	else if (padding == (byte) 0xFF)
+		   asymmetricCipher = Cipher.getInstance(Cipher.ALG_RSA_PKCS1, false);
+	else 
+		ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+	
+	if (privPub == (byte) 0x00 ) // using public key
+			{
+				PublicKeyObject pubKey = applet.pubKeyDirFile.getRecord(keyId);
+				if (pubKey == null)
+					  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+				
+				pubKey.decode();
+				
+				short keylen =0;
+				if (pubKey.typeAttribute.modulusLength.val[0] == (byte) 0x04)
+					   keylen = KeyBuilder.LENGTH_RSA_1024;
+				else if (pubKey.typeAttribute.modulusLength.val[0] == (byte)0x08) 
+				 	   keylen = KeyBuilder.LENGTH_RSA_2048;
+				else
+					 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+				
+				rsaKey = (RSAPublicKey) KeyBuilder.buildKey(KeyBuilder.TYPE_RSA_PUBLIC, keylen, false);
+				((RSAPublicKey)rsaKey).setModulus(pubKey.typeAttribute.value.modulus.val, (short)0,(short) pubKey.typeAttribute.value.modulus.val.length);
+				((RSAPublicKey)rsaKey).setExponent(pubKey.typeAttribute.value.publicExponent.val, (short)0, (short)pubKey.typeAttribute.value.publicExponent.val.length);
+				
+				pubKey.encode();
+				pubKey.freeMembers();
+				
+				try{
+					outputData = JCSystem.makeTransientByteArray((short)(keylen/8), JCSystem.CLEAR_ON_RESET);
+				}
+				catch(Exception e){
+					ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+				}
+			
+				
+			} 
+	else if (privPub == (byte)0xFF ) // using private key
+			{
+				if (applet.getPins()[0].isValidated() == false)
+			     	        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+			     		
+				PrivateKeyObject privKey = applet.privKeyDirFile.getRecord(keyId);
+				if (privKey == null)
+					  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+				
+				privKey.decode();
+				
+				short keylen =0;
+				if (privKey.typeAttribute.modulusLength.val[0] == (byte) 0x04)
+					   keylen = KeyBuilder.LENGTH_RSA_1024;
+				else if (privKey.typeAttribute.modulusLength.val[0] == (byte)0x08) 
+				 	   keylen = KeyBuilder.LENGTH_RSA_2048;
+				else
+					 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+				
+				rsaKey = (RSAPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_RSA_PRIVATE, keylen, false);
+				((RSAPrivateKey)rsaKey).setModulus(privKey.typeAttribute.value.modulus.val, (short)0, (short)privKey.typeAttribute.value.modulus.val.length);
+				((RSAPrivateKey)rsaKey).setExponent(privKey.typeAttribute.value.privateExponent.val, (short)0, (short) privKey.typeAttribute.value.privateExponent.val.length );
+				
+				
+				privKey.encode();
+				privKey.freeMembers();
+				
+				try{
+					outputData = JCSystem.makeTransientByteArray((short)(keylen/8), JCSystem.CLEAR_ON_RESET);
+				}
+				catch(Exception e){
+					ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+				}
+				
+			}
+	else 
+		ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+	
+	
+	 if ( buffer[ISO7816.OFFSET_P1] == (byte) 0x00) // Encrypt operation
+ 		 asymmetricCipher.init(rsaKey, Cipher.MODE_ENCRYPT);
+     else if ( buffer[ISO7816.OFFSET_P1] == (byte) 0xFF) // Decrypt operation
+ 	    asymmetricCipher.init(rsaKey, Cipher.MODE_DECRYPT);
+     else 
+ 	      ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	 
+	 short bytesNr = 0;
+	 
+	 try{
+	 bytesNr = asymmetricCipher.doFinal(IODataManager.getBuffer(), (short)0, IODataManager.actualBufferSize, outputData, (short)0);
+	 }
+	 catch(CryptoException e){
+		 ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+	 }
+	 
+
+	 IODataManager.freeBuffer();	 
+	 
+	 IODataManager.prepareBuffer(bytesNr);
+	 IODataManager.setData((short)0, outputData, (short)0, bytesNr);
+	 rsaKey.clearKey();
+	
+	 outputData=null;
+	 
+	 if (JCSystem.isObjectDeletionSupported())
+	      JCSystem.requestObjectDeletion();
+	 
+	 IODataManager.sendData(apdu);
+	 
+}	
+	
+	
+
+
+
 	
 /**
  * This method handles the SYMMETRIC_ECB_ENCRYPT_DECRYPT command
@@ -247,6 +398,7 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     Cipher symmetricCipher = null;
     Key symKey = null;
     
+    
     if (alg == (byte) 0x10)  // AES 128 bit input block
     	  {
     	      symmetricCipher = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_ECB_NOPAD, false);
@@ -286,7 +438,7 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	    	      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     	      		}
     	  }
-    else if (alg == (byte) 0x08 )  // DES or 3DES 64/128/192 bit input block
+    else if (alg == (byte) 0x08 )  // DES or 3DES 64 bit input block
     	  {
     	      symmetricCipher = Cipher.getInstance(Cipher.ALG_DES_ECB_NOPAD,false);
     	      if (key.subClassAttributes.keyLen.val.length == (short) 1) 
