@@ -16,6 +16,7 @@ import javacard.security.KeyPair;
 import javacard.security.RSAPrivateKey;
 import javacard.security.RSAPublicKey;
 import javacard.security.RandomData;
+import javacard.security.Signature;
 import javacardx.crypto.Cipher;
 
 
@@ -62,7 +63,8 @@ public class APDUDispatcher {
 	public static final byte INS_GENERATE_KEY_PAIR         	   = (byte) 0x09;
 	public static final byte INS_SYMMETRIC_ECB_ENCRYPT_DECRPYT = (byte) 0x0A;
 	public static final byte INS_ASYMMETRIC_RSA_ENCRYPT_DECRYPT= (byte) 0x0B;
-
+	public static final byte INS_COMPUTE_SIGNATURE             = (byte) 0x0C;
+	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
 	
@@ -70,6 +72,8 @@ public class APDUDispatcher {
 	private static UniqueIDProvider idProvider = null;
 	
 	private static RandomData randomGenerator = null;
+	
+	private static Signature signature = null;
 	
 	/**
 	 * This method calls specific method to handle the APDU command
@@ -142,6 +146,9 @@ public class APDUDispatcher {
 													
 						case INS_ASYMMETRIC_RSA_ENCRYPT_DECRYPT: asymmetricRSAEncryptDecrypt(applet,apdu);
 																  break;
+																  
+						case INS_COMPUTE_SIGNATURE: computeSignature(applet,apdu);
+													break;
 						case INS_DEBUG: 
 																									    
 //													Certificate cert = new Certificate(IODataManager.getBuffer());
@@ -203,6 +210,107 @@ public class APDUDispatcher {
 						}
 	}
 
+	
+/**
+ * This method handles the COMPUTE_SIGNATURE command
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void computeSignature(PKCS15Applet applet,APDU apdu){
+	
+	if (applet.getPins()[0].isValidated() == false)
+	        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	
+	if (buffer[ISO7816.OFFSET_P1] == (byte) 0x00 ) //initialize operation
+				{
+						
+					short idSize = (short) (buffer[ISO7816.OFFSET_P2] & 0x00FF);
+					byte[] keyId = null;
+					
+					try {
+						keyId = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+					    Util.arrayCopy(buffer,offset, keyId, (short)0, idSize);
+						}
+						catch (SystemException e){
+							ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+						}
+					offset+= idSize;
+					
+					if (buffer[offset] == (byte) 0x00)
+						   signature = Signature.getInstance(Signature.ALG_RSA_SHA_PKCS1, false);
+					else if (buffer[offset] == (byte) 0xFF)
+						   signature = Signature.getInstance(Signature.ALG_RSA_MD5_PKCS1, false);
+					else 
+						 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+					
+					PrivateKeyObject privKeyObj = applet.privKeyDirFile.getRecord(keyId);
+					
+					if (privKeyObj == null)
+						  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+					
+					privKeyObj.decode();
+					
+					short keylen =0;
+					if (privKeyObj.typeAttribute.modulusLength.val[0] == (byte) 0x04)
+						   keylen = KeyBuilder.LENGTH_RSA_1024;
+					else if (privKeyObj.typeAttribute.modulusLength.val[0] == (byte)0x08) 
+					 	   keylen = KeyBuilder.LENGTH_RSA_2048;
+					else
+						 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+					
+					Key privKey = (RSAPrivateKey) KeyBuilder.buildKey(KeyBuilder.TYPE_RSA_PRIVATE, keylen, false);
+					((RSAPrivateKey)privKey).setModulus(privKeyObj.typeAttribute.value.modulus.val, (short)0, (short)privKeyObj.typeAttribute.value.modulus.val.length);
+					((RSAPrivateKey)privKey).setExponent(privKeyObj.typeAttribute.value.privateExponent.val, (short)0, (short) privKeyObj.typeAttribute.value.privateExponent.val.length );
+                    
+					signature.init(privKey, Signature.MODE_SIGN);
+                    
+					privKeyObj.encode();
+					privKeyObj.freeMembers();
+					
+					
+				}
+	else if (buffer[ISO7816.OFFSET_P1] == (byte) 0x01) //update operation
+				{
+				    short inputSize = (short) (buffer[ISO7816.OFFSET_LC] & 0x00FF);
+				    
+				    try{
+				    	 signature.update(buffer, (short) ISO7816.OFFSET_CDATA, (short)inputSize);
+				    }
+				    catch(Exception e){
+				    	 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+				    }
+				}
+	else if (buffer[ISO7816.OFFSET_P1] == (byte) 0x02) // final sign operation
+	            {
+					short inputSize = (short) (buffer[ISO7816.OFFSET_LC] & 0x00FF);
+				   
+				   
+				    try{
+				    	 IODataManager.prepareBuffer(signature.getLength());
+				    	 signature.sign(buffer, (short)ISO7816.OFFSET_CDATA, inputSize, IODataManager.getBuffer(), (short)0);
+				    	 signature=null;
+				    	 
+				    	 if (JCSystem.isObjectDeletionSupported())
+				    		   JCSystem.requestObjectDeletion();
+				    	 
+				    	 IODataManager.sendData(apdu);
+				    }
+				    
+				    catch(Exception e){
+				    	 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+				    }
+				    
+	            }
+	else ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	   
+}
+	
+	
+	
+	
 /**
  * This method handles the ASYMMETRIC_RSA_ENCRYPT_DECRYPT command	
  * @param applet PKCS15Applet instance
@@ -327,7 +435,7 @@ private static void asymmetricRSAEncryptDecrypt(PKCS15Applet applet,APDU apdu){
 	 bytesNr = asymmetricCipher.doFinal(IODataManager.getBuffer(), (short)0, IODataManager.actualBufferSize, outputData, (short)0);
 	 }
 	 catch(CryptoException e){
-		 ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+		 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
 	 }
 	 
 
