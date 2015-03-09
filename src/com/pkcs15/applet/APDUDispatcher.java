@@ -40,9 +40,6 @@ public class APDUDispatcher {
 	public static final short SW_INCORRECT_PARAMETERS_IN_DATA = (short)0x6A80;
 	public static final short SW_SECURITY_NOT_SATISFIED       = (short)0x6982;
 	
-	/* Proprietary status words*/
-	//public static final short SW_OUT_OF_RAM = (short)0x5100;
-	
 	
 	
 	/*PKCS15Applet CLA*/
@@ -64,6 +61,7 @@ public class APDUDispatcher {
 	public static final byte INS_SYMMETRIC_ECB_ENCRYPT_DECRPYT = (byte) 0x0A;
 	public static final byte INS_ASYMMETRIC_RSA_ENCRYPT_DECRYPT= (byte) 0x0B;
 	public static final byte INS_COMPUTE_SIGNATURE             = (byte) 0x0C;
+	public static final byte INS_IMPORT_SECRET_KEY			   = (byte) 0x0D;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -149,6 +147,10 @@ public class APDUDispatcher {
 																  
 						case INS_COMPUTE_SIGNATURE: computeSignature(applet,apdu);
 													break;
+								
+						case INS_IMPORT_SECRET_KEY: importSecretKey(applet,apdu);
+													break;
+													
 						case INS_DEBUG: 
 																									    
 //													Certificate cert = new Certificate(IODataManager.getBuffer());
@@ -210,6 +212,94 @@ public class APDUDispatcher {
 						}
 	}
 
+
+/**
+ * This method handles the IMPORT_SECRET_KEY
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void importSecretKey(PKCS15Applet applet,APDU apdu){
+	
+	if (applet.getPins()[0].isValidated() == false)
+        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	byte[] id = idProvider.getUniqueID();
+	short size = (short) (buffer[offset++] & 0x00FF);
+	
+	//Creating ASN1 structure of SecretKeyObject and adding it to SKDF
+	Utf8String label = new Utf8String(buffer, offset,size);
+	CommonObjectFlags cof = new CommonObjectFlags(true, false);
+	OctetString authId = new OctetString(applet.ownerPinAuthId, (short)0,(short)applet.ownerPinAuthId.length);
+	CommonObjectAttributes coa = new CommonObjectAttributes(label, cof, authId);
+	
+	OctetString keyID = new OctetString(id,(short)0,(short)id.length);
+	KeyUsageFlags kuf = new KeyUsageFlags(true, true, false, false, false, false, false, false, false, false);
+	Boolean nativ = new Boolean(true);
+	offset+=size;
+	boolean extractable = (buffer[offset++] == (byte)0xFF);
+	KeyAccessFlags kaf = new KeyAccessFlags(false,extractable,false,!extractable,false);
+	Integer ref = new Integer((short)0);
+	CommonKeyAttributes cka = new CommonKeyAttributes(keyID, kuf, nativ, kaf, ref);
+	
+	short keyLen=0;;
+	switch(buffer[offset++]){
+	case 0x01: // AES key case
+		    if (buffer[offset] == (byte)0x80) // 128 bit key case
+		    		keyLen=(short)128;
+		    else if (buffer[offset] == (byte)0xC0) // 192 bit key case
+		    	keyLen=(short)192;
+		    else if (buffer[offset] == (byte)0x00) // 256 bit key case
+		    	keyLen=(short)256;
+		    else
+		    	ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+			break;
+	case 0x02: // DES key case
+		    if (buffer[offset] ==(byte)0x40 ) //64 bit key case
+		    	keyLen = (short)64;
+		    else
+		    	ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+			break;
+	case 0x03: // 3DES key case
+			if (buffer[offset] ==(byte)0x80 ) //128 bit key case
+	    		keyLen = (short)128;
+	    	else if (buffer[offset] ==(byte)0xC0 ) //192 bit key case
+		    	keyLen = (short)192;
+		    else 
+		    	ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+		    break;
+	default: ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);}
+	Integer keyLength = new Integer(keyLen);
+	CommonSecretKeyAttributes cska = new CommonSecretKeyAttributes(keyLength);
+	
+	SecretKeyObject secObj = null;
+	
+	try {
+	offset++;
+	
+	OctetString keyValue = new OctetString();
+	keyValue.val = new byte[(short)(keyLen/8)];
+	Util.arrayCopy(buffer, offset, keyValue.val, (short)0, (short)keyValue.val.length);
+	GenericSecretKeyAttributes gska = new GenericSecretKeyAttributes(keyValue);
+    secObj = new SecretKeyObject(coa, cka, cska, gska);
+	
+	}
+	catch (Exception e){
+	   ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);	
+	}
+
+	applet.secKeyDirFile.addRecord(secObj);
+	
+	if (JCSystem.isObjectDeletionSupported())
+		 JCSystem.requestObjectDeletion();
+	
+	IODataManager.prepareBuffer((short)id.length);
+	IODataManager.setData((short)0,id,(short)0,(short)id.length);
+	IODataManager.sendData(apdu);
+	
+}
+	
 	
 /**
  * This method handles the COMPUTE_SIGNATURE command
