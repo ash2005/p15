@@ -62,6 +62,7 @@ public class APDUDispatcher {
 	public static final byte INS_ASYMMETRIC_RSA_ENCRYPT_DECRYPT= (byte) 0x0B;
 	public static final byte INS_COMPUTE_SIGNATURE             = (byte) 0x0C;
 	public static final byte INS_IMPORT_SECRET_KEY			   = (byte) 0x0D;
+	public static final byte INS_EXPORT_SECRET_KEY 			   = (byte) 0x0E;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -150,6 +151,9 @@ public class APDUDispatcher {
 								
 						case INS_IMPORT_SECRET_KEY: importSecretKey(applet,apdu);
 													break;
+						
+						case INS_EXPORT_SECRET_KEY: exportSecretKey(applet,apdu);
+													break;
 													
 						case INS_DEBUG: 
 																									    
@@ -214,7 +218,55 @@ public class APDUDispatcher {
 
 
 /**
- * This method handles the IMPORT_SECRET_KEY
+ * This method handles the EXPORT_SECRET_KEY command
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void exportSecretKey(PKCS15Applet applet,APDU apdu){
+	
+	if (applet.getPins()[0].isValidated() == false)
+        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	
+	short idSize = (short) (buffer[offset++] & 0x00FF);
+	byte[] keyId = null;
+	
+	try {
+		keyId = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+	    Util.arrayCopy(buffer,offset, keyId, (short)0, idSize);
+		}
+		catch (SystemException e){
+			ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+		}
+	
+	SecretKeyObject secretKey = applet.secKeyDirFile.getRecord(keyId);
+	if (secretKey == null)
+		  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+	
+	secretKey.decode();
+	
+	if (secretKey.classAtributes.accessFlags.extractable == false)
+					{
+						secretKey.encode();
+						secretKey.freeMembers();
+						ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+		     		}		
+	
+	IODataManager.prepareBuffer((short)secretKey.typeAttribute.value.val.length);
+	IODataManager.setData((short)0, secretKey.typeAttribute.value.val, (short)0, (short)secretKey.typeAttribute.value.val.length);
+    secretKey.encode();
+    secretKey.freeMembers();
+    
+    IODataManager.sendData(apdu);
+    
+    
+}	
+	
+	
+/**
+ * This method handles the IMPORT_SECRET_KEY command
  * @param applet PKCS15Applet instance
  * @param apdu APDU structure
  */
