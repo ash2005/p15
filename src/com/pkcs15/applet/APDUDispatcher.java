@@ -1,5 +1,7 @@
 package com.pkcs15.applet;
 
+
+
 import javacard.framework.APDU;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
@@ -63,6 +65,7 @@ public class APDUDispatcher {
 	public static final byte INS_COMPUTE_SIGNATURE             = (byte) 0x0C;
 	public static final byte INS_IMPORT_SECRET_KEY			   = (byte) 0x0D;
 	public static final byte INS_EXPORT_SECRET_KEY 			   = (byte) 0x0E;
+	public static final byte INS_EXPORT_PRIVATE_PUBLIC_KEY	   = (byte) 0x0F;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -155,6 +158,9 @@ public class APDUDispatcher {
 						case INS_EXPORT_SECRET_KEY: exportSecretKey(applet,apdu);
 													break;
 													
+						case INS_EXPORT_PRIVATE_PUBLIC_KEY: exportPrivatePublicKey(applet,apdu);
+													break;
+													
 						case INS_DEBUG: 
 																									    
 //													Certificate cert = new Certificate(IODataManager.getBuffer());
@@ -217,6 +223,85 @@ public class APDUDispatcher {
 	}
 
 
+/**
+ * This method handles the EXPORT_PRIVATE_PUBLIC_KEY command
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void exportPrivatePublicKey(PKCS15Applet applet,APDU apdu){
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	
+	short idSize = (short) (buffer[ISO7816.OFFSET_P2] & 0x00FF);
+	byte[] keyId = null;
+	
+	try {
+		keyId = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+	    Util.arrayCopy(buffer,offset, keyId, (short)0, idSize);
+		}
+		catch (SystemException e){
+			ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+		}
+	
+	
+	if ( buffer[ISO7816.OFFSET_P1] == (byte)0x00 ) //public key case
+				{
+					PublicKeyObject pubKey = applet.pubKeyDirFile.getRecord(keyId);
+					if (pubKey == null)
+						   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+					
+					pubKey.decode();
+					pubKey.typeAttribute.value.encode();
+					IODataManager.prepareBuffer((short)pubKey.typeAttribute.value.encoding.length);
+					IODataManager.setData((short)0, pubKey.typeAttribute.value.encoding, (short)0, (short)pubKey.typeAttribute.value.encoding.length);
+					
+					pubKey.typeAttribute.value.decode();							
+					pubKey.encode();
+					pubKey.freeMembers();
+					
+					IODataManager.sendData(apdu);
+				
+				}
+	
+	else if ( buffer[ISO7816.OFFSET_P1] == (byte)0xFF) //private key case
+				{
+					if (applet.getPins()[0].isValidated() == false)
+				        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+	
+					PrivateKeyObject privKey = applet.privKeyDirFile.getRecord(keyId);
+					if (privKey == null)
+						  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+				
+					privKey.decode();
+					
+					if (privKey.classAtributes.accessFlags.extractable == false)
+							{
+						       privKey.encode();
+						       privKey.freeMembers();
+						       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+							}
+					
+					privKey.typeAttribute.value.encode();
+					IODataManager.prepareBuffer((short)privKey.typeAttribute.value.encoding.length);
+					IODataManager.setData((short)0, privKey.typeAttribute.value.encoding , (short)0, (short) privKey.typeAttribute.value.encoding.length);
+					
+					privKey.typeAttribute.value.decode();
+					privKey.encode();
+				    privKey.freeMembers();
+				    
+				    IODataManager.sendData(apdu);
+					
+					
+				}
+	else 
+		ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	
+}	
+	
+	
+	
+	
 /**
  * This method handles the EXPORT_SECRET_KEY command
  * @param applet PKCS15Applet instance
