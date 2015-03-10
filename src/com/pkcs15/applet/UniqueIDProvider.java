@@ -1,7 +1,7 @@
 package com.pkcs15.applet;
 
 /**
- * This class represents a provider or unique IDs
+ * This class represents a provider for unique IDs
  * @author Lupascu Alexandru
  */
 public class UniqueIDProvider {

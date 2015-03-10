@@ -68,6 +68,7 @@ public class APDUDispatcher {
 	public static final byte INS_EXPORT_PRIVATE_PUBLIC_KEY	   = (byte) 0x0F;
 	public static final byte INS_IMPORT_PRIVATE_PUBLIC_KEY     = (byte) 0x01;
 	public static final byte INS_IMPORT_CERTIFICATE			   = (byte) 0x03;
+	public static final byte INS_EXPORT_CERTIFICATE			   = (byte) 0x05;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -168,9 +169,13 @@ public class APDUDispatcher {
 													
 						case INS_IMPORT_CERTIFICATE: importCertificate(applet,apdu);
 													 break;
+													 
+						case INS_EXPORT_CERTIFICATE: exportCertificate(applet,apdu);
+													break;
+													
 						case INS_DEBUG: 
 																									    
-//													
+													
 												    byte[] data=null;
 												   	    
 												    byte[] id=new byte[2];
@@ -197,6 +202,44 @@ public class APDUDispatcher {
 						}
 	}
 
+/**
+ * This method handles the EXPORT_CERTIFICATE command
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void exportCertificate(PKCS15Applet applet,APDU apdu){
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	short idSize = (short) (buffer[ISO7816.OFFSET_P2] & 0x00FF);
+	byte[] certId = null;
+	
+	try {
+		certId = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+	    Util.arrayCopy(buffer,offset, certId, (short)0, idSize);
+		}
+		catch (SystemException e){
+			ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+		}
+	
+	CertificateObject certObj = applet.certDirFile.getRecord(certId);
+	if (certObj == null)
+		  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+	
+	certObj.decode();
+	certObj.typeAttribute.value.encode();
+	IODataManager.prepareBuffer((short)certObj.typeAttribute.value.encoding.length);
+	IODataManager.setData((short)0, certObj.typeAttribute.value.encoding, (short)0, (short) certObj.typeAttribute.value.encoding.length);
+	certObj.typeAttribute.value.decode();
+	certObj.encode();
+	certObj.freeMembers();
+	IODataManager.sendData(apdu);
+	
+	
+}
+
+
+	
 	
 	
 /**
