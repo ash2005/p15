@@ -66,6 +66,7 @@ public class APDUDispatcher {
 	public static final byte INS_IMPORT_SECRET_KEY			   = (byte) 0x0D;
 	public static final byte INS_EXPORT_SECRET_KEY 			   = (byte) 0x0E;
 	public static final byte INS_EXPORT_PRIVATE_PUBLIC_KEY	   = (byte) 0x0F;
+	public static final byte INS_IMPORT_PRIVATE_PUBLIC_KEY     = (byte) 0x01;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -114,8 +115,8 @@ public class APDUDispatcher {
 				
 				// Verifying that GET_RESPONSE command is sent after part of the data was transfered
 				// Verifying that no command is sent until all data was transfered with the GET_RESPONSE command
-				if(IODataManager.offset_sent>0 && INS!= INS_GET_RESPONSE)
-					 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+				//if(IODataManager.offset_sent>0 && INS!= INS_GET_RESPONSE)
+					// ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
 			    //	else if (INS ==INS_GET_RESPONSE && IODataManager.offset_sent ==0 )
 				//	 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
 				
@@ -161,6 +162,8 @@ public class APDUDispatcher {
 						case INS_EXPORT_PRIVATE_PUBLIC_KEY: exportPrivatePublicKey(applet,apdu);
 													break;
 													
+						case INS_IMPORT_PRIVATE_PUBLIC_KEY: importPrivatePublicKey(applet,apdu,bytesReceived);
+													break;
 						case INS_DEBUG: 
 																									    
 //													Certificate cert = new Certificate(IODataManager.getBuffer());
@@ -223,6 +226,181 @@ public class APDUDispatcher {
 	}
 
 
+/**
+ * @param applet PKCS15Apllet instance
+ * @param apdu APDU structure
+ * @param bytesReceived Number of bytes received, obtained with APDU.setIncomingAndReceive().
+ */
+private static void importPrivatePublicKey(PKCS15Applet applet,APDU apdu,short bytesReceived){
+	
+	byte[] buffer = apdu.getBuffer();
+	
+	
+	if (applet.getPins()[0].isValidated() == false)
+        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+
+	
+	
+	if (buffer[ISO7816.OFFSET_CLA] == PKCS15Applet_CLA_COMMAND_CHAINING)
+			{
+					IODataManager.receiveData(apdu, bytesReceived); //load key
+			}
+	else if (buffer[ISO7816.OFFSET_CLA] == PKCS15Applet_CLA) //finish importing key
+			{
+				short offset = ISO7816.OFFSET_CDATA;
+
+			    if (buffer[ISO7816.OFFSET_P1] == (byte)0x00) 
+			    			{
+			    	           if ( buffer[ISO7816.OFFSET_P2] != (byte)0xFF)
+					    	 				ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			    			}
+			    else if (buffer[ISO7816.OFFSET_P1] == (byte)0xFF)
+			    		{
+			    	        if ( buffer[ISO7816.OFFSET_P2] != (byte)0x00)
+			    	        	if ( buffer[ISO7816.OFFSET_P2] != (byte)0xFF)
+			    	        		   ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			    		}
+			    else ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			    
+			    
+			    byte[] id = idProvider.getUniqueID();
+			    
+			    boolean extractable = (buffer[ISO7816.OFFSET_P2] == (byte)0xFF);
+			    
+			    short size = (short) (buffer[offset++] & 0x00FF);
+				byte[] cn=null;
+				byte[] c=null;
+				byte[] l=null;
+				byte[] s=null;
+				byte[] o=null;
+				byte[] ou=null;
+				
+				try{
+				//Extract parameters from data field
+				Utf8String label = new Utf8String(buffer,offset,size);
+				offset+=size;
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+			    Integer modulusLen = null;
+				if (size == (short)0x0010)
+					   modulusLen = new Integer((short)1024);
+				else if (size == (short)0x0020)
+					   modulusLen = new Integer((short)2048);
+				else ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+				if (size != (short)0x0000){
+				cn = new byte[size];
+				Util.arrayCopy(buffer, offset, cn, (short)0, size);
+				offset+=size;
+				}
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+				if (size != (short)0x0000){
+				c = new byte[size];
+				Util.arrayCopy(buffer, offset, c, (short)0, size);
+				offset+=size;
+				}
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+				if (size != (short)0x0000){
+				l = new byte[size];
+				Util.arrayCopy(buffer, offset, l, (short)0, size);
+				offset+=size;
+				}
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+				if (size != (short)0x0000){
+				s = new byte[size];
+				Util.arrayCopy(buffer, offset, s, (short)0, size);
+				offset+=size;
+				}
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+				if (size != (short)0x0000){
+				o = new byte[size];
+				Util.arrayCopy(buffer, offset, o, (short)0, size);
+				offset+=size;
+				}
+				
+				size = (short) (buffer[offset++] & 0x00FF);
+				if (size != (short)0x0000){
+				ou = new byte[size];
+				Util.arrayCopy(buffer, offset, ou, (short)0, size);
+				}
+				
+				
+				CommonObjectFlags cof = null;
+				if (buffer[ISO7816.OFFSET_P1] == (byte)0x00) //public key
+						 cof = new CommonObjectFlags(false,false);
+				else //private key
+					   cof = new CommonObjectFlags(true, false);
+				OctetString authId = new OctetString(applet.ownerPinAuthId,(short)0,(short)applet.ownerPinAuthId.length);
+			    CommonObjectAttributes coa = new CommonObjectAttributes(label, cof, authId);
+			    
+			    OctetString keyId = new OctetString(id, (short)0,(short)id.length);
+			    KeyUsageFlags kuf = null;
+			    if (buffer[ISO7816.OFFSET_P1] == (byte)0x00) // public key
+			    	kuf = new KeyUsageFlags(true, false, false, false, false, false, false, true, false, false);
+			    else //private ket
+			    	kuf = new KeyUsageFlags(false, true, false, true, false, false, false, false, false, true);	
+			    
+			    Boolean nativ = new Boolean(true);
+			    KeyAccessFlags kaf = new KeyAccessFlags(false, extractable, false, !extractable, false);
+			    Integer ref = new Integer((short)0);
+			    CommonKeyAttributes cka = new CommonKeyAttributes(keyId, kuf, nativ, kaf, ref);
+			    
+			    Name name = new Name(cn,null,c,l,s,o,ou,null,null,null,null,null,null);
+				
+			    if (buffer[ISO7816.OFFSET_P1] == (byte)0x00) //public key
+			    		{
+			    			CommonPublicKeyAttributes cpuka = new CommonPublicKeyAttributes(name);
+			    			com.pkcs15.applet.RSAPublicKey rsapuko = new com.pkcs15.applet.RSAPublicKey();
+			    			rsapuko.encoding = new byte[(short)IODataManager.getBuffer().length];
+			    			Util.arrayCopy(IODataManager.getBuffer(), (short)0, rsapuko.encoding, (short)0, (short)IODataManager.getBuffer().length);
+			    			rsapuko.decode();
+			    			PublicRSAKeyAttributes pursaka = new PublicRSAKeyAttributes(rsapuko, modulusLen);
+			    			PublicKeyObject pubKeyObj = new PublicKeyObject(coa, cka, cpuka, pursaka);
+			    			
+			    			applet.pubKeyDirFile.addRecord(pubKeyObj);
+			    		}
+			    else  //private key 
+			    		{
+			    	        CommonPrivateKeyAttributes cprka = new CommonPrivateKeyAttributes(name);
+			                RsaPrivateKeyObject rsaprko = new RsaPrivateKeyObject(IODataManager.getBuffer(), (short)0, (short)IODataManager.getBuffer().length);
+                            rsaprko.decode();			             
+                            PrivateRsaKeyAttribute prrsaka = new PrivateRsaKeyAttribute(rsaprko, modulusLen);
+                            PrivateKeyObject privKeyObj = new PrivateKeyObject(coa, cka, cprka, prrsaka);
+                            
+                            applet.privKeyDirFile.addRecord(privKeyObj);
+                            
+                            
+			    		}
+			    
+			    IODataManager.prepareBuffer((short)id.length);
+            	IODataManager.setData((short)0,id, (short)0, (short)id.length);
+            	IODataManager.sendData(apdu);
+            	
+				}
+				catch(SystemException e){
+					  if (e.getReason() == SystemException.NO_TRANSIENT_SPACE)
+						  		ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+					  else
+						  ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+				}
+				catch(Exception e){
+					 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+				}
+				
+			}
+	else
+		ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
+	
+}	
+	
+	
+	
+	
 /**
  * This method handles the EXPORT_PRIVATE_PUBLIC_KEY command
  * @param applet PKCS15Applet instance
