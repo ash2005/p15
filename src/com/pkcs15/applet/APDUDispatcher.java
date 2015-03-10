@@ -67,6 +67,7 @@ public class APDUDispatcher {
 	public static final byte INS_EXPORT_SECRET_KEY 			   = (byte) 0x0E;
 	public static final byte INS_EXPORT_PRIVATE_PUBLIC_KEY	   = (byte) 0x0F;
 	public static final byte INS_IMPORT_PRIVATE_PUBLIC_KEY     = (byte) 0x01;
+	public static final byte INS_IMPORT_CERTIFICATE			   = (byte) 0x03;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -164,66 +165,149 @@ public class APDUDispatcher {
 													
 						case INS_IMPORT_PRIVATE_PUBLIC_KEY: importPrivatePublicKey(applet,apdu,bytesReceived);
 													break;
+													
+						case INS_IMPORT_CERTIFICATE: importCertificate(applet,apdu);
+													 break;
 						case INS_DEBUG: 
 																									    
-//													Certificate cert = new Certificate(IODataManager.getBuffer());
-//													cert.decode();
 //													
-//													
-//													X509CertificateAttributes xca = new X509CertificateAttributes(cert);
-//																										
-//													CertificateObject co = new CertificateObject(coa, cca, xca);
-//													
-//														   
 												    byte[] data=null;
-												   // KeyPair kp = new KeyPair(KeyPair.ALG_RSA, KeyBuilder.LENGTH_RSA_2048);
-												    //kp.genKeyPair();
-											
-												 //   RSAPublicKey pub = (RSAPublicKey)kp.getPublic();
-												   // RSAPrivateKey priv = (RSAPrivateKey)kp.getPrivate();
-												    
-												   // data = JCSystem.makeTransientByteArray((short)((priv.getSize()/8)+1), JCSystem.CLEAR_ON_RESET);
-												    
-												   // short len;
-												    
-												   // len = priv.getModulus(data, (short)0);
-												    //len = priv.getExponent(data, (short)0);
-												    
+												   	    
 												    byte[] id=new byte[2];
 												    id[0]= apdu.getBuffer()[ISO7816.OFFSET_P1];
 												    id[1]= apdu.getBuffer()[ISO7816.OFFSET_P2];
-												    SecretKeyObject sko = applet.secKeyDirFile.getRecord(id);
-												    sko.decode();
-												    data = sko.typeAttribute.value.val;
-												     
-												     //pub.getModulus(data,(short)0);
-												    //pub.getExponent(data, (short)0);
-												    
-												   // IODataManager.prepareBuffer((short)len);
-													//IODataManager.setData((short)0, data, (short)0,(short)len);
+												    CertificateObject co = applet.certDirFile.getRecord(id);
+												   co.decode();
+												    data = co.typeAttribute.value.issuer.commonName_CN;
 												   
-												    
-												   
-												    
 													IODataManager.prepareBuffer((short)data.length);
 												    IODataManager.setData((short)0, data, (short)0,(short)data.length);
 													
 													break;
 						case INS_GET_MEMORY:		
 													
-													byte[] data2 = applet.privKeyDirFile.getFile();
 							
-													IODataManager.prepareBuffer((short)data2.length);
-												    IODataManager.setData((short)0, data2, (short)0,(short)data2.length);
-							
-							                        //short left = JCSystem.getAvailableMemory(JCSystem.MEMORY_TYPE_PERSISTENT);
-													//buffer[0] = (byte) ((left>>8) & 0x00FF);
-													//buffer[1] = (byte) (left & 0x00FF);
-													//apdu.setOutgoingAndSend((short)0,(short)2);
-												break;
+							                        short left = JCSystem.getAvailableMemory(JCSystem.MEMORY_TYPE_PERSISTENT);
+													buffer[0] = (byte) ((left>>8) & 0x00FF);
+													buffer[1] = (byte) (left & 0x00FF);
+													apdu.setOutgoingAndSend((short)0,(short)2);
+											    	break;
+											    	
 						default:		 			               ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);						 
 						}
 	}
+
+	
+	
+/**
+ * This method handles the IMPORT_CERTIFICATE command	
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void importCertificate(PKCS15Applet applet,APDU apdu){
+	
+	if (applet.getPins()[0].isValidated() == false)
+        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	short size =0;
+	byte[] id = null;
+	
+	if ( (buffer[ISO7816.OFFSET_P1] != (byte)0x00) && (buffer[ISO7816.OFFSET_P1] != (byte)0xFF))
+					{
+			           IODataManager.freeBuffer();
+			           ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+					}
+    boolean authority = (buffer[ISO7816.OFFSET_P1] == (byte)0xFF);
+    Boolean authorityFlag = new Boolean(authority);
+    
+    
+    try{
+    	
+	    if ( buffer[ISO7816.OFFSET_P2] == (byte)0xFF) //public key in the certificate has a private key pair on smartcard
+	    		{
+	    			size = (short) (buffer[offset++] & 0x00FF);
+	    			id = new byte[size];
+	    			Util.arrayCopy(buffer, offset, id, (short)0, (short)size);
+	    			offset+=size;
+	    			
+	    			PrivateKeyObject privKey = applet.privKeyDirFile.getRecord(id);
+	    			if (privKey == null)
+	    						{
+	    							IODataManager.freeBuffer();
+	    							ISOException.throwIt(SW_REFERENCE_DATA_NOT_FOUND);
+	    						}
+	    			privKey = null;
+	    			
+	    		}
+	    else if (buffer[ISO7816.OFFSET_P2] == (byte)0x00)
+	    			{
+	    				id = idProvider.getUniqueID();
+	    			}
+	    else
+	    			{
+	    				IODataManager.freeBuffer();
+	    				ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	    			}
+	    
+	    size = (short) (buffer[offset++] & 0x00FF);
+	    Utf8String label = new Utf8String(buffer,offset,size);
+		offset+=size;
+		
+		size = (short) (buffer[offset++] & 0x00FF);
+		Integer credIdType = new Integer(buffer, offset, size);
+		offset+=size;
+		
+		size = (short) (buffer[offset++] & 0x00FF);
+		OctetString credIdValue = new OctetString(buffer, offset, size);
+		
+		CommonObjectFlags cof = new CommonObjectFlags(false, false);
+		OctetString authId = new OctetString(applet.ownerPinAuthId,(short)0,(short)applet.ownerPinAuthId.length);
+		CommonObjectAttributes coa = new CommonObjectAttributes(label,cof,authId);
+		
+		CredentialIdentifier identifier = new CredentialIdentifier(credIdType, credIdValue);
+		OctetString certId = new OctetString(id, (short)0, (short)id.length);
+		CommonCertificateAttributes cca = new CommonCertificateAttributes(certId, authorityFlag, identifier);
+	    
+		Certificate certificate = new Certificate(IODataManager.getBuffer());
+		
+		try{
+		certificate.decode();
+		}
+		catch(Exception e){
+			ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+		}
+		
+		X509CertificateAttributes xca = new X509CertificateAttributes(certificate);
+		
+		//Create CertificateObject
+		CertificateObject certObj = new CertificateObject(coa, cca, xca);
+		
+		//add certificate to Certificate Directory File
+		applet.certDirFile.addRecord(certObj);
+		
+		
+		IODataManager.prepareBuffer((short)id.length);
+		IODataManager.setData((short)0,id, (short)0, (short)id.length);
+		IODataManager.sendData(apdu);
+    }
+    catch(ISOException e){
+    	 IODataManager.freeBuffer();
+    	 if (e.getReason() == ISO7816.SW_CONDITIONS_NOT_SATISFIED)
+    		    ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	 else if (e.getReason() == ISO7816.SW_INCORRECT_P1P2)
+    		    ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+    	 else if (e.getReason() == SW_REFERENCE_DATA_NOT_FOUND)
+    		   ISOException.throwIt(SW_REFERENCE_DATA_NOT_FOUND);
+    	 else
+    		   ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+    }
+	
+	
+}
+	
+
 
 
 /**
@@ -252,15 +336,24 @@ private static void importPrivatePublicKey(PKCS15Applet applet,APDU apdu,short b
 			    if (buffer[ISO7816.OFFSET_P1] == (byte)0x00) 
 			    			{
 			    	           if ( buffer[ISO7816.OFFSET_P2] != (byte)0xFF)
-					    	 				ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+					    	 				{
+			    	        	   				IODataManager.freeBuffer();
+			    	        	   				ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+					    	 				}
 			    			}
 			    else if (buffer[ISO7816.OFFSET_P1] == (byte)0xFF)
 			    		{
 			    	        if ( buffer[ISO7816.OFFSET_P2] != (byte)0x00)
 			    	        	if ( buffer[ISO7816.OFFSET_P2] != (byte)0xFF)
-			    	        		   ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			    	        		   {
+			    	        		     IODataManager.freeBuffer();
+			    	        			 ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			    	        		   }
 			    		}
-			    else ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			    else {
+			    	 IODataManager.freeBuffer();
+			    	 ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+			        }
 			    
 			    
 			    byte[] id = idProvider.getUniqueID();
@@ -383,12 +476,16 @@ private static void importPrivatePublicKey(PKCS15Applet applet,APDU apdu,short b
             	
 				}
 				catch(SystemException e){
+					  
+					  IODataManager.freeBuffer();
+					
 					  if (e.getReason() == SystemException.NO_TRANSIENT_SPACE)
 						  		ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
 					  else
 						  ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
 				}
 				catch(Exception e){
+					 IODataManager.freeBuffer();
 					 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
 				}
 				
