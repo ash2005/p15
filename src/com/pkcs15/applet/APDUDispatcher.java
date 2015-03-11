@@ -69,6 +69,7 @@ public class APDUDispatcher {
 	public static final byte INS_IMPORT_PRIVATE_PUBLIC_KEY     = (byte) 0x01;
 	public static final byte INS_IMPORT_CERTIFICATE			   = (byte) 0x03;
 	public static final byte INS_EXPORT_CERTIFICATE			   = (byte) 0x05;
+	public static final byte INS_UNBLOCK_AND_CHANGE_OWNER_PIN  = (byte) 0x10;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -173,6 +174,9 @@ public class APDUDispatcher {
 						case INS_EXPORT_CERTIFICATE: exportCertificate(applet,apdu);
 													break;
 													
+						case INS_UNBLOCK_AND_CHANGE_OWNER_PIN: unblockAndChangeOwnerPin(applet,apdu);
+													break;
+													
 						case INS_DEBUG: 
 																									    
 													
@@ -202,6 +206,38 @@ public class APDUDispatcher {
 						}
 	}
 
+	
+/**
+ * This method handles the UNBLOCK_AND_CHANGE_OWNER_PIN command
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void unblockAndChangeOwnerPin(PKCS15Applet applet,APDU apdu){
+	
+	//Check if SO has been authenticated
+	if (applet.getPins()[1].isValidated() == false)
+        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+	
+	byte[] buffer = apdu.getBuffer();
+	short offset = ISO7816.OFFSET_CDATA;
+	
+	try{
+		  applet.getPins()[0].resetAndUnblock();
+		  applet.getPins()[0].update(buffer, offset, (byte)buffer[ISO7816.OFFSET_P2]);
+	}
+	catch(Exception e){
+		   ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	}
+	
+}
+	
+	
+	
+	
+	
+	
+	
+	
 /**
  * This method handles the EXPORT_CERTIFICATE command
  * @param applet PKCS15Applet instance
