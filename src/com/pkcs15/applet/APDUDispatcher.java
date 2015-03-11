@@ -1384,6 +1384,10 @@ private static void getRandomData(PKCS15Applet applet,APDU apdu){
 	
 	short size = (short)(apdu.getBuffer()[ISO7816.OFFSET_P1] & 0x00FF);
 	
+	if (size == (short)0)
+		  ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	
+	
 	try{
 		
 		IODataManager.prepareBuffer((short)size);
