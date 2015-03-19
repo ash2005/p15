@@ -149,9 +149,9 @@ public class PKCS15Applet extends Applet {
 		
 		/*If the command is select applet, then no processing is made */
 		if (this.selectingApplet())
-	   		return;
-
-		
+	   			return;
+	   			
+     
 		//dispatch APDU message
 		APDUDispatcher.dispatch(this, apdu);
 		

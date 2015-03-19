@@ -387,6 +387,7 @@ public final class FileSystem {
     /***************************************************************************/
     
     /* File identifiers*/
+    public static final short PKCS15DF_FID = (short)0x4D00;
     public static final short ODF_FID = (short) 0x5031 ;
     public static final short PrKDF_FID = (short) 0x4D01 ;
     public static final short PuKDF_FID = (short) 0x4D02 ;

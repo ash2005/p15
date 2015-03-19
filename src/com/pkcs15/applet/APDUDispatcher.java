@@ -51,6 +51,7 @@ public class APDUDispatcher {
 	/* ISO7816 instructions bytes*/
 	public static final byte INS_VERIFY       = (byte) 0x20;
 	public static final byte INS_GET_RESPONSE = (byte) 0xC0;
+
 	
 	
 	/* Proprietary instructions bytes*/
@@ -70,6 +71,7 @@ public class APDUDispatcher {
 	public static final byte INS_IMPORT_CERTIFICATE			   = (byte) 0x03;
 	public static final byte INS_EXPORT_CERTIFICATE			   = (byte) 0x05;
 	public static final byte INS_UNBLOCK_AND_CHANGE_OWNER_PIN  = (byte) 0x10;
+	public static final byte INS_DELETE_OBJECT				   = (byte) 0x11;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -104,7 +106,7 @@ public class APDUDispatcher {
 				short LC = (short) (buffer[ISO7816.OFFSET_LC] & 0x00FF);
 				
 				//get the INS byte
-						byte INS = buffer[ISO7816.OFFSET_INS];
+				byte INS = buffer[ISO7816.OFFSET_INS];
 				
 			   // If first command is not SETUP then return SW = COMMAND NOT ALLOWED.
 			   // Only allow SETUP command first time
@@ -116,12 +118,7 @@ public class APDUDispatcher {
 					 bytesReceived +=apdu.receiveBytes(bytesReceived);			
 				}
 				
-				// Verifying that GET_RESPONSE command is sent after part of the data was transfered
-				// Verifying that no command is sent until all data was transfered with the GET_RESPONSE command
-				//if(IODataManager.offset_sent>0 && INS!= INS_GET_RESPONSE)
-					// ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-			    //	else if (INS ==INS_GET_RESPONSE && IODataManager.offset_sent ==0 )
-				//	 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+				
 				
                 switch(INS) {
 		
@@ -177,6 +174,10 @@ public class APDUDispatcher {
 						case INS_UNBLOCK_AND_CHANGE_OWNER_PIN: unblockAndChangeOwnerPin(applet,apdu);
 													break;
 													
+						case INS_DELETE_OBJECT: deleteObject(applet,apdu);	
+												break;
+												
+													
 						case INS_DEBUG: 
 																									    
 													
@@ -206,6 +207,68 @@ public class APDUDispatcher {
 						}
 	}
 
+/**
+ * This method handles the DELETE_OBJECT command	
+ * @param applet PKCS15Applet instance
+ * @param apdu APDU structure
+ */
+private static void deleteObject(PKCS15Applet applet,APDU apdu){
+	
+	if (applet.getPins()[0].isValidated() == false)
+        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+	
+    byte[] buffer = apdu.getBuffer();
+    short offset = ISO7816.OFFSET_CDATA;
+    byte[] id = null;
+    short idSize = (short) (buffer[ISO7816.OFFSET_P2] & 0x00FF);
+	
+	
+	try {
+	id = JCSystem.makeTransientByteArray((short)idSize,JCSystem.CLEAR_ON_RESET);
+    Util.arrayCopy(buffer,offset, id, (short)0, idSize);
+	}
+	catch (SystemException e){
+		ISOException.throwIt(SW_VOLATILE_MEMORY_UNAVAILABLE);
+	}
+    
+    
+    
+    switch (buffer[ISO7816.OFFSET_P1]){
+    case (byte)0x01:
+    					PublicKeyObject pubkObj = applet.pubKeyDirFile.getRecord(id);
+    					if (pubkObj == null)
+    						   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+    					pubkObj = null;
+    					applet.pubKeyDirFile.deleteRecord(id);
+    					break;
+    					
+    case (byte)0x02:    PrivateKeyObject privkObj = applet.privKeyDirFile.getRecord(id);
+    					if (privkObj == null)
+    						    ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+    					privkObj = null;
+    					applet.privKeyDirFile.deleteRecord(id);
+    					break;
+    					
+    case (byte)0x03:	SecretKeyObject seckObj = applet.secKeyDirFile.getRecord(id);
+    					if (seckObj == null)
+    						   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+    					seckObj = null;
+    					applet.secKeyDirFile.deleteRecord(id);
+    					break;
+    					
+    case (byte)0x04: 	CertificateObject certObj = applet.certDirFile.getRecord(id);
+    					if (certObj == null)
+    						   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
+    					seckObj = null;
+    					applet.certDirFile.deleteRecord(id);
+       					break;
+       					
+    default :  ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+    }
+}
+	
+	
+	
 	
 /**
  * This method handles the UNBLOCK_AND_CHANGE_OWNER_PIN command
