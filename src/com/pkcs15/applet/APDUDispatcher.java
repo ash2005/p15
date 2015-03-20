@@ -72,6 +72,7 @@ public class APDUDispatcher {
 	public static final byte INS_EXPORT_CERTIFICATE			   = (byte) 0x05;
 	public static final byte INS_UNBLOCK_AND_CHANGE_OWNER_PIN  = (byte) 0x10;
 	public static final byte INS_DELETE_OBJECT				   = (byte) 0x11;
+	public static final byte INS_LOGOUT						   = (byte) 0x12;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -177,7 +178,8 @@ public class APDUDispatcher {
 						case INS_DELETE_OBJECT: deleteObject(applet,apdu);	
 												break;
 												
-													
+						case INS_LOGOUT:		logout(applet,apdu);
+												break;
 						case INS_DEBUG: 
 																									    
 													
@@ -206,7 +208,27 @@ public class APDUDispatcher {
 						default:		 			               ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);						 
 						}
 	}
-
+	
+/**
+* This method handles the LOGOUT command	
+* @param applet PKCS15Applet instance
+* @param apdu APDU structure
+*/
+private static void logout(PKCS15Applet applet,APDU apdu){
+	
+	byte[] buffer =apdu.getBuffer();
+	
+	switch (buffer[ISO7816.OFFSET_P2]){
+	
+	case (byte)0x00:   applet.getPins()[0].reset();
+						break;
+	case (byte)0x01:   applet.getPins()[1].reset();
+						break;
+	default:		ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	}
+}	
+	
+	
 /**
  * This method handles the DELETE_OBJECT command	
  * @param applet PKCS15Applet instance
