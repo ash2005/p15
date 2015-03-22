@@ -74,6 +74,7 @@ public class APDUDispatcher {
 	public static final byte INS_DELETE_OBJECT				   = (byte) 0x11;
 	public static final byte INS_LOGOUT						   = (byte) 0x12;
 	
+	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
 	
