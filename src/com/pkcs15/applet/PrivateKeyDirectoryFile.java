@@ -104,33 +104,6 @@ public class PrivateKeyDirectoryFile {
 		return object;
 	}
 	
-	
-	/**
-	 * This method gets the private key directory file content
-	 * @return Byte array with the file content
-	 */
-	public byte[] getFile(){
-		
-		short totallen = 0;
-		PrivateKeyObjectEntry node = root;
-		while (node != null){
-			
-			totallen += (short) node.obj.encoding.length;
-			node = node.next;
-		}
-		
-		byte[] file = new byte[totallen];
-		
-		short offset=0;
-		node = root;
-		while (node != null){
-			Util.arrayCopy(node.obj.encoding, (short)0, file, offset,(short)node.obj.encoding.length);
-			offset += (short) node.obj.encoding.length;
-			node = node.next;
-		}
-		
-		return file;
-	}
 
 	
 	/**
