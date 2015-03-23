@@ -36,9 +36,9 @@ public class SecretKeyDirectoryFile {
 		
 	    if (root == null)
 	    {
-	    	  if (obj.isEncoded == false){
-	    		   obj.encode();
-	    		   obj.freeMembers();
+	    	  if (obj.isEncoded == true){
+	    		   obj.decode();
+	    		   obj.freeEncoding();
 	    	  }
 	    		  
 			  root = new SecretKeyObjectEntry(obj);
@@ -51,9 +51,9 @@ public class SecretKeyDirectoryFile {
 						   node = node.next;
 					}
 					
-					if (obj.isEncoded == false){
-						 obj.encode();
-						 obj.freeMembers();
+					if (obj.isEncoded == true){
+						 obj.decode();
+						 obj.freeEncoding();
 					}
 					
 					SecretKeyObjectEntry newnode = new SecretKeyObjectEntry(obj);
@@ -87,10 +87,12 @@ public class SecretKeyDirectoryFile {
 		
 		while(node != null){
 			
-			node.obj.decode();
+			if (node.obj.isEncoded == true)
+					{
+						node.obj.decode();
+						node.obj.freeEncoding();
+					}
 			match = areEqualIds(node.obj.classAtributes.iD.val, id);
-			node.obj.encode();
-			node.obj.freeMembers();
 			
 			if (match)
 				 return node.obj;
@@ -112,10 +114,12 @@ public class SecretKeyDirectoryFile {
 		if (root == null) 
 			return;
 		
-	    root.obj.decode();
+		if (root.obj.isEncoded == true){
+			root.obj.decode();
+			root.obj.freeEncoding();
+		}
+	    
 	    boolean match = areEqualIds(root.obj.classAtributes.iD.val, id);
-	    root.obj.encode();
-	    root.obj.freeMembers();
 	    
 	   
 	    
@@ -147,10 +151,13 @@ public class SecretKeyDirectoryFile {
 			 return;
 		
 		while(node.next !=null){
-			 node.next.obj.decode();
+			 
+			 if (node.next.obj.isEncoded == true){
+				 node.next.obj.decode();
+				 node.next.obj.freeEncoding();
+			 }
+			 
 			 match = areEqualIds(node.next.obj.classAtributes.iD.val, id);
-			 node.next.obj.encode();
-			 node.next.obj.freeMembers();
 			 
 			 if (match == false){
 				 node = node.next;

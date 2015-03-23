@@ -36,9 +36,9 @@ public class PrivateKeyDirectoryFile {
 		
 	    if (root == null)
 	    {     
-	    	  if ( obj.isEncoded == false){
-	    		    obj.encode();
-	    		    obj.freeMembers();
+	    	  if ( obj.isEncoded == true){
+	    		    obj.decode();
+	    		    obj.freeEncoding();
 	    	  }
 	    		  
 			  root = new PrivateKeyObjectEntry(obj);
@@ -50,9 +50,9 @@ public class PrivateKeyDirectoryFile {
 						   node = node.next;
 					}
 					
-					if ( obj.isEncoded == false){
-		    		    obj.encode();
-		    		    obj.freeMembers();
+					if ( obj.isEncoded == true){
+		    		    obj.decode();
+		    		    obj.freeEncoding();
 		    	    }
 					
 					PrivateKeyObjectEntry newnode = new PrivateKeyObjectEntry(obj);
@@ -90,10 +90,12 @@ public class PrivateKeyDirectoryFile {
 		
 		while(node != null){
 			
-			node.obj.decode();
+			if (node.obj.isEncoded == true){
+					node.obj.decode();
+					node.obj.freeEncoding();
+			}
+			
 		    match = areEqualIds(node.obj.classAtributes.iD.val, id);
-			node.obj.encode();
-			node.obj.freeMembers();
 			
 			if (match)
 				 return node.obj;
@@ -115,12 +117,12 @@ public class PrivateKeyDirectoryFile {
 		if (root == null) 
 			return;
 		
-	    root.obj.decode();
-	    boolean match = areEqualIds(root.obj.classAtributes.iD.val, id);
-	    root.obj.encode();
-	    root.obj.freeMembers();
-	    
-	   
+	    if (root.obj.isEncoded == true){
+	    	root.obj.decode();
+	    	root.obj.freeEncoding();
+	    }
+		
+	    boolean match = areEqualIds(root.obj.classAtributes.iD.val, id);	   
 	    
 	    if (match)
 	    	{
@@ -150,10 +152,13 @@ public class PrivateKeyDirectoryFile {
 			 return;
 		
 		while(node.next !=null){
-			 node.next.obj.decode();
+			 
+			if (node.next.obj.isEncoded == true){
+				  node.next.obj.decode();
+				  node.next.obj.freeEncoding();
+			}
+			
 			 match = areEqualIds(node.next.obj.classAtributes.iD.val, id);
-			 node.next.obj.encode();
-			 node.next.obj.freeMembers();
 			 
 			 if (match == false){
 				 node = node.next;

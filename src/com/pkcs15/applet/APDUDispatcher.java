@@ -187,17 +187,9 @@ public class APDUDispatcher {
 						case INS_DEBUG: 
 																									    
 													
-												    byte[] data=null;
-												   	    
-												    byte[] id=new byte[2];
-												    id[0]= apdu.getBuffer()[ISO7816.OFFSET_P1];
-												    id[1]= apdu.getBuffer()[ISO7816.OFFSET_P2];
-												    CertificateObject co = applet.certDirFile.getRecord(id);
-												   co.decode();
-												    data = co.typeAttribute.value.issuer.commonName_CN;
-												   
-													IODataManager.prepareBuffer((short)data.length);
-												    IODataManager.setData((short)0, data, (short)0,(short)data.length);
+												    
+													//IODataManager.prepareBuffer((short)data.length);
+												    //IODataManager.setData((short)0, data, (short)0,(short)data.length);
 													
 													break;
 						case INS_GET_MEMORY:		
@@ -244,7 +236,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					for (i=(short)0;i<applet.pubKeyDirFile.size;i++)
 							{
 								puko = applet.pubKeyDirFile.getRecordAtIndex(i);
-								puko.decode();
+								
 								
 								if (puko.commonObjectAttributes.flags.privateFlag)
 									  if (isPrivate == false)
@@ -266,11 +258,8 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 								
 									if (puko.commonObjectAttributes.flags.privateFlag)
 										  if (isPrivate == false)
-										   {
-											  puko.encode();
-											  puko.freeMembers();
-											  continue;
-										   }
+										   		  continue;
+										   
 									
 									buffer[offset++] = puko.commonObjectAttributes.flags.privateFlag ? (byte) 0xFF : (byte)0x00;
 									buffer[offset++] = puko.classAtributes.accessFlags.extractable ? (byte)0xFF : (byte)0x00;
@@ -288,8 +277,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 								    IODataManager.setData(offset, puko.classAtributes.iD.val, (short)0, (short)puko.classAtributes.iD.val.length);
 								    offset += (short) puko.classAtributes.iD.val.length;
 								    
-								    puko.encode();
-								    puko.freeMembers();
+								   
 									
 								}
 					
@@ -303,7 +291,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					for (i=(short)0;i<applet.privKeyDirFile.size;i++)
 					{
 						prko = applet.privKeyDirFile.getRecordAtIndex(i);
-						prko.decode();
+						
 						
 						if (prko.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
@@ -327,11 +315,8 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					
 						if (prko.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
-							   {
-								  prko.encode();
-								  prko.freeMembers();
-								  continue;
-							   }
+							    	  continue;
+							   
 						
 						buffer[offset++] = prko.commonObjectAttributes.flags.privateFlag ? (byte) 0xFF : (byte)0x00;
 						buffer[offset++] = prko.classAtributes.accessFlags.extractable ? (byte)0xFF : (byte)0x00;
@@ -349,8 +334,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					    IODataManager.setData(offset, prko.classAtributes.iD.val, (short)0, (short)prko.classAtributes.iD.val.length);
 					    offset += (short) prko.classAtributes.iD.val.length;
 					    
-					    prko.encode();
-					    prko.freeMembers();
+					   
 						
 					}
 	
@@ -364,7 +348,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					for (i=(short)0;i<applet.secKeyDirFile.size;i++)
 					{
 						sko = applet.secKeyDirFile.getRecordAtIndex(i);
-						sko.decode();
+						
 						
 						if (sko.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
@@ -387,11 +371,8 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					
 						if (sko.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
-							   {
-								  sko.encode();
-								  sko.freeMembers();
-								  continue;
-							   }
+							  	  continue;
+							   
 						
 						buffer[offset++] = sko.commonObjectAttributes.flags.privateFlag ? (byte) 0xFF : (byte)0x00;
 						buffer[offset++] = sko.classAtributes.accessFlags.extractable ? (byte)0xFF : (byte)0x00;
@@ -415,8 +396,6 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					    IODataManager.setData(offset, sko.classAtributes.iD.val, (short)0, (short)sko.classAtributes.iD.val.length);
 					    offset += (short) sko.classAtributes.iD.val.length;
 					    
-					    sko.encode();
-					    sko.freeMembers();
 						
 					}
 	
@@ -431,8 +410,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					for (i=(short)0;i<applet.certDirFile.size;i++)
 					{
 						co = applet.certDirFile.getRecordAtIndex(i);
-						co.decode();
-						
+												
 						if (co.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
 							   continue;
@@ -463,9 +441,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					    IODataManager.setData(offset, co.classAtributes.iD.val, (short)0, (short)co.classAtributes.iD.val.length);
 					    offset += (short) co.classAtributes.iD.val.length;
 					    
-					    co.encode();
-					    co.freeMembers();
-						
+					    						
 					}
 	
 					IODataManager.sendData(apdu);
@@ -621,13 +597,12 @@ private static void exportCertificate(PKCS15Applet applet,APDU apdu){
 	if (certObj == null)
 		  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 	
-	certObj.decode();
+	
 	certObj.typeAttribute.value.encode();
 	IODataManager.prepareBuffer((short)certObj.typeAttribute.value.encoding.length);
 	IODataManager.setData((short)0, certObj.typeAttribute.value.encoding, (short)0, (short) certObj.typeAttribute.value.encoding.length);
 	certObj.typeAttribute.value.decode();
-	certObj.encode();
-	certObj.freeMembers();
+	
 	IODataManager.sendData(apdu);
 	
 	
@@ -965,14 +940,12 @@ private static void exportPrivatePublicKey(PKCS15Applet applet,APDU apdu){
 					if (pubKey == null)
 						   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 					
-					pubKey.decode();
+					
 					pubKey.typeAttribute.value.encode();
 					IODataManager.prepareBuffer((short)pubKey.typeAttribute.value.encoding.length);
 					IODataManager.setData((short)0, pubKey.typeAttribute.value.encoding, (short)0, (short)pubKey.typeAttribute.value.encoding.length);
 					
 					pubKey.typeAttribute.value.decode();							
-					pubKey.encode();
-					pubKey.freeMembers();
 					
 					IODataManager.sendData(apdu);
 				
@@ -987,23 +960,18 @@ private static void exportPrivatePublicKey(PKCS15Applet applet,APDU apdu){
 					if (privKey == null)
 						  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 				
-					privKey.decode();
+					
 					
 					if (privKey.classAtributes.accessFlags.extractable == false)
-							{
-						       privKey.encode();
-						       privKey.freeMembers();
-						       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-							}
+							      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+							
 					
 					privKey.typeAttribute.value.encode();
 					IODataManager.prepareBuffer((short)privKey.typeAttribute.value.encoding.length);
 					IODataManager.setData((short)0, privKey.typeAttribute.value.encoding , (short)0, (short) privKey.typeAttribute.value.encoding.length);
 					
 					privKey.typeAttribute.value.decode();
-					privKey.encode();
-				    privKey.freeMembers();
-				    
+					
 				    IODataManager.sendData(apdu);
 					
 					
@@ -1044,19 +1012,15 @@ private static void exportSecretKey(PKCS15Applet applet,APDU apdu){
 	if (secretKey == null)
 		  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 	
-	secretKey.decode();
+	
 	
 	if (secretKey.classAtributes.accessFlags.extractable == false)
-					{
-						secretKey.encode();
-						secretKey.freeMembers();
-						ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-		     		}		
+					ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+		     				
 	
 	IODataManager.prepareBuffer((short)secretKey.typeAttribute.value.val.length);
 	IODataManager.setData((short)0, secretKey.typeAttribute.value.val, (short)0, (short)secretKey.typeAttribute.value.val.length);
-    secretKey.encode();
-    secretKey.freeMembers();
+    
     
     IODataManager.sendData(apdu);
     
@@ -1197,7 +1161,7 @@ private static void computeSignature(PKCS15Applet applet,APDU apdu){
 					if (privKeyObj == null)
 						  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 					
-					privKeyObj.decode();
+					
 					
 					short keylen =0;
 					if (privKeyObj.typeAttribute.modulusLength.val[0] == (byte) 0x04)
@@ -1213,9 +1177,7 @@ private static void computeSignature(PKCS15Applet applet,APDU apdu){
                     
 					signature.init(privKey, Signature.MODE_SIGN);
                     
-					privKeyObj.encode();
-					privKeyObj.freeMembers();
-					
+										
 					
 				}
 	else if (buffer[ISO7816.OFFSET_P1] == (byte) 0x01) //update operation
@@ -1303,7 +1265,7 @@ private static void asymmetricRSAEncryptDecrypt(PKCS15Applet applet,APDU apdu){
 				if (pubKey == null)
 					  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 				
-				pubKey.decode();
+				
 				
 				short keylen =0;
 				if (pubKey.typeAttribute.modulusLength.val[0] == (byte) 0x04)
@@ -1317,9 +1279,7 @@ private static void asymmetricRSAEncryptDecrypt(PKCS15Applet applet,APDU apdu){
 				((RSAPublicKey)rsaKey).setModulus(pubKey.typeAttribute.value.modulus.val, (short)0,(short) pubKey.typeAttribute.value.modulus.val.length);
 				((RSAPublicKey)rsaKey).setExponent(pubKey.typeAttribute.value.publicExponent.val, (short)0, (short)pubKey.typeAttribute.value.publicExponent.val.length);
 				
-				pubKey.encode();
-				pubKey.freeMembers();
-				
+							
 				try{
 					outputData = JCSystem.makeTransientByteArray((short)(keylen/8), JCSystem.CLEAR_ON_RESET);
 				}
@@ -1338,8 +1298,7 @@ private static void asymmetricRSAEncryptDecrypt(PKCS15Applet applet,APDU apdu){
 				if (privKey == null)
 					  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 				
-				privKey.decode();
-				
+								
 				short keylen =0;
 				if (privKey.typeAttribute.modulusLength.val[0] == (byte) 0x04)
 					   keylen = KeyBuilder.LENGTH_RSA_1024;
@@ -1352,10 +1311,7 @@ private static void asymmetricRSAEncryptDecrypt(PKCS15Applet applet,APDU apdu){
 				((RSAPrivateKey)rsaKey).setModulus(privKey.typeAttribute.value.modulus.val, (short)0, (short)privKey.typeAttribute.value.modulus.val.length);
 				((RSAPrivateKey)rsaKey).setExponent(privKey.typeAttribute.value.privateExponent.val, (short)0, (short) privKey.typeAttribute.value.privateExponent.val.length );
 				
-				
-				privKey.encode();
-				privKey.freeMembers();
-				
+								
 				try{
 					outputData = JCSystem.makeTransientByteArray((short)(keylen/8), JCSystem.CLEAR_ON_RESET);
 				}
@@ -1438,15 +1394,11 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	   ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
     
     //Check if the key is private - protected by PIN and verify that the authentication was previously made
-    key.decode();
     if (key.commonObjectAttributes.flags.privateFlag == true)
     		{
     			if (applet.getPins()[0].isValidated() == false)
-    				     {
-    						key.encode();
-    						key.freeMembers();
-    				        ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
-    				     }
+    				      ISOException.throwIt(SW_SECURITY_NOT_SATISFIED);
+    				     
     		}
     
     Cipher symmetricCipher = null;
@@ -1461,8 +1413,6 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	    	  		if ((key.subClassAttributes.keyLen.val[0] != (byte) 0x01) ||
     	    	  			(key.subClassAttributes.keyLen.val[1] != (byte) 0x00))
     	    	  				{
-    	    	  				  key.encode();
-    	    	  				  key.freeMembers();
     	    	  				  ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     	    	  				}
     	    	  		symKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_256, false);
@@ -1477,9 +1427,7 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	    	    	       symKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES_TRANSIENT_RESET, KeyBuilder.LENGTH_AES_128, false);
     	    	       else 
     	    	       	{
-    	    	    	   key.encode();
-    	    	    	   key.freeMembers();
-    	    	    	   ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	    	    	  ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     	    	       	}
     	    	       
     	    	        ((AESKey)symKey).setKey(key.typeAttribute.value.val, (short)0);
@@ -1487,8 +1435,6 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	      		}  	      
     	      else 
     	      		{
-    	    	      key.encode();
-    	    	      key.freeMembers();
     	    	      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     	      		}
     	  }
@@ -1505,8 +1451,6 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	    	  			  symKey = (DESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_DES_TRANSIENT_RESET, KeyBuilder.LENGTH_DES3_3KEY, false);
     	    	  		else 
     	    	  				{
-    	    	  					key.encode();
-    	    	  					key.freeMembers();
     	    	  					ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     	    	  				}
     	    	  		
@@ -1514,22 +1458,15 @@ private static void symmetricEcbEncryptDecrypt(PKCS15Applet applet,APDU apdu){
     	      		}
     	      else 
     	      		{
-    	    	      key.encode();
-    	    	      key.freeMembers();
-    	    	      ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
+    	    	       ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
     	      		}
     	  }
     else 
     	{
-    	 key.encode();
-    	 key.freeMembers();
-    	 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+    	  	 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
     	}
     
-    key.encode();
-    key.freeMembers();
-    
-    
+        
     if ( buffer[ISO7816.OFFSET_P1] == (byte) 0x00) // Encrypt operation
     		symmetricCipher.init(symKey, Cipher.MODE_ENCRYPT);
        
