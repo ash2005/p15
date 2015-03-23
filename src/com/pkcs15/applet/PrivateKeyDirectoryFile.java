@@ -17,7 +17,7 @@ public class PrivateKeyDirectoryFile {
 	/*This is the head of the list*/
 	public PrivateKeyObjectEntry root = null;
 	
-	
+	public short size = (short)0;
 	
 	/**
 	 * Implicit constructor
@@ -59,6 +59,7 @@ public class PrivateKeyDirectoryFile {
 					node.next=newnode;
 				}
 			
+	    size++;
 		JCSystem.commitTransaction();
 		}
 		catch( SystemException e){
@@ -159,6 +160,7 @@ public class PrivateKeyDirectoryFile {
 		    		if (JCSystem.isObjectDeletionSupported())
 		    			 JCSystem.requestObjectDeletion();
 		    		
+		    		size--;
 		    		JCSystem.commitTransaction();
 	    	   }
 	    	   
@@ -195,6 +197,7 @@ public class PrivateKeyDirectoryFile {
 				 if (JCSystem.isObjectDeletionSupported())
 					 JCSystem.requestObjectDeletion();
 				 
+				 size--;
 				 JCSystem.commitTransaction();
 			 }
 			 
@@ -207,6 +210,36 @@ public class PrivateKeyDirectoryFile {
 		}
 		
 	}
+	
+	
+	
+	
+	/**
+	 * This method gets an specific PrivateKeyObject from the private key directory file
+	 * @param index Index in the private key directory file
+	 * @return PrivateKeyObject
+	 */
+	public PrivateKeyObject getRecordAtIndex(short index){
+		   
+		   if ((index >= size) || (index < (short)0))
+			     return null;
+		   
+		   
+		   short it = (short)0;
+		   PrivateKeyObjectEntry node = root;
+		   
+		   while (node != null){
+			   	  if (it == index)
+			   		    return node.obj;
+			   	  it++;
+			   	  node = node.next;
+		   }
+		   
+		   
+		   return null;
+	}
+	
+	
 	
 	
 	/**

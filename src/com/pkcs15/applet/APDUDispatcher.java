@@ -73,7 +73,7 @@ public class APDUDispatcher {
 	public static final byte INS_UNBLOCK_AND_CHANGE_OWNER_PIN  = (byte) 0x10;
 	public static final byte INS_DELETE_OBJECT				   = (byte) 0x11;
 	public static final byte INS_LOGOUT						   = (byte) 0x12;
-	
+	public static final byte INS_FIND_OBJECTS				   = (byte) 0x13;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
 	private static final byte INS_GET_MEMORY =(byte) 0xFE;
@@ -181,6 +181,9 @@ public class APDUDispatcher {
 												
 						case INS_LOGOUT:		logout(applet,apdu);
 												break;
+												
+						case INS_FIND_OBJECTS: findObjects(applet,apdu);
+												break;
 						case INS_DEBUG: 
 																									    
 													
@@ -209,6 +212,276 @@ public class APDUDispatcher {
 						default:		 			               ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);						 
 						}
 	}
+
+	
+
+/**
+* This method handles the FIND_OBJECTS command	
+* @param applet PKCS15Applet instance
+* @param apdu APDU structure
+*/	
+private static void findObjects(PKCS15Applet applet,APDU apdu){
+	
+	byte[] buffer = apdu.getBuffer();
+	short i=(short)0;
+	short totalSize =(short)1;
+	short offset = (short)0;
+	
+	boolean isPrivate = false;
+	
+	if (buffer[ISO7816.OFFSET_P2] == (byte)0x00 )
+		  isPrivate = false;
+	else if (buffer[ISO7816.OFFSET_P2] == (byte)0xFF )
+		  isPrivate = true;
+	else ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	
+	
+	switch(buffer[ISO7816.OFFSET_P1]){
+	
+	case (byte)0x01: // public key object case
+					PublicKeyObject puko =null;
+					
+					for (i=(short)0;i<applet.pubKeyDirFile.size;i++)
+							{
+								puko = applet.pubKeyDirFile.getRecordAtIndex(i);
+								puko.decode();
+								
+								if (puko.commonObjectAttributes.flags.privateFlag)
+									  if (isPrivate == false)
+									   continue;
+								
+								 totalSize += (short) (3); // private object byte,extractable byte,key size byte
+							     totalSize += (short) ( 1 + puko.commonObjectAttributes.label.val.length );
+							     totalSize += (short) ( 1 + puko.classAtributes.iD.val.length);
+							     
+							}
+				
+					IODataManager.prepareBuffer(totalSize); 
+					buffer = IODataManager.getBuffer();
+					buffer[offset++] = (byte) (i & 0x00FF);
+					
+					for(i=(short)0;i<applet.pubKeyDirFile.size;i++)
+								{
+									puko = applet.pubKeyDirFile.getRecordAtIndex(i);
+								
+									if (puko.commonObjectAttributes.flags.privateFlag)
+										  if (isPrivate == false)
+										   {
+											  puko.encode();
+											  puko.freeMembers();
+											  continue;
+										   }
+									
+									buffer[offset++] = puko.commonObjectAttributes.flags.privateFlag ? (byte) 0xFF : (byte)0x00;
+									buffer[offset++] = puko.classAtributes.accessFlags.extractable ? (byte)0xFF : (byte)0x00;
+									
+									if (puko.typeAttribute.modulusLength.val[0] == (byte)0x04)
+										   buffer[offset++] = (byte) 0x10; //1024 bit key size
+									else 
+										   buffer[offset++] = (byte) 0x20;// 2048 bit key size
+									
+									buffer[offset++] = (byte) ( puko.commonObjectAttributes.label.val.length & 0x00FF);
+								    IODataManager.setData(offset, puko.commonObjectAttributes.label.val, (short)0, (short)puko.commonObjectAttributes.label.val.length);
+								    offset += (short) puko.commonObjectAttributes.label.val.length;
+								    
+								    buffer[offset++] = (byte) ( puko.classAtributes.iD.val.length & 0x00FF);
+								    IODataManager.setData(offset, puko.classAtributes.iD.val, (short)0, (short)puko.classAtributes.iD.val.length);
+								    offset += (short) puko.classAtributes.iD.val.length;
+								    
+								    puko.encode();
+								    puko.freeMembers();
+									
+								}
+					
+					IODataManager.sendData(apdu);
+					
+					break;
+	
+	case (byte)0x02:// private key object case
+		            PrivateKeyObject prko = null;
+	
+					for (i=(short)0;i<applet.privKeyDirFile.size;i++)
+					{
+						prko = applet.privKeyDirFile.getRecordAtIndex(i);
+						prko.decode();
+						
+						if (prko.commonObjectAttributes.flags.privateFlag)
+							  if (isPrivate == false)
+							   continue;
+						
+						 totalSize += (short) (3); // private object byte,extractable byte,key size byte
+					     totalSize += (short) ( 1 + prko.commonObjectAttributes.label.val.length );
+					     totalSize += (short) ( 1 + prko.classAtributes.iD.val.length);
+					     
+					}
+					
+					
+					IODataManager.prepareBuffer(totalSize); 
+					buffer = IODataManager.getBuffer();
+					buffer[offset++] = (byte) (i & 0x00FF);
+					
+					
+					for(i=(short)0;i<applet.privKeyDirFile.size;i++)
+					{
+						prko = applet.privKeyDirFile.getRecordAtIndex(i);
+					
+						if (prko.commonObjectAttributes.flags.privateFlag)
+							  if (isPrivate == false)
+							   {
+								  prko.encode();
+								  prko.freeMembers();
+								  continue;
+							   }
+						
+						buffer[offset++] = prko.commonObjectAttributes.flags.privateFlag ? (byte) 0xFF : (byte)0x00;
+						buffer[offset++] = prko.classAtributes.accessFlags.extractable ? (byte)0xFF : (byte)0x00;
+						
+						if (prko.typeAttribute.modulusLength.val[0] == (byte)0x04)
+							   buffer[offset++] = (byte) 0x10; //1024 bit key size
+						else 
+							   buffer[offset++] = (byte) 0x20;// 2048 bit key size
+						
+						buffer[offset++] = (byte) ( prko.commonObjectAttributes.label.val.length & 0x00FF);
+					    IODataManager.setData(offset, prko.commonObjectAttributes.label.val, (short)0, (short)prko.commonObjectAttributes.label.val.length);
+					    offset += (short) prko.commonObjectAttributes.label.val.length;
+					    
+					    buffer[offset++] = (byte) ( prko.classAtributes.iD.val.length & 0x00FF);
+					    IODataManager.setData(offset, prko.classAtributes.iD.val, (short)0, (short)prko.classAtributes.iD.val.length);
+					    offset += (short) prko.classAtributes.iD.val.length;
+					    
+					    prko.encode();
+					    prko.freeMembers();
+						
+					}
+	
+					IODataManager.sendData(apdu);
+					
+					break;
+	
+	case (byte)0x03://secret key object case
+					SecretKeyObject sko = null;
+				
+					for (i=(short)0;i<applet.secKeyDirFile.size;i++)
+					{
+						sko = applet.secKeyDirFile.getRecordAtIndex(i);
+						sko.decode();
+						
+						if (sko.commonObjectAttributes.flags.privateFlag)
+							  if (isPrivate == false)
+							   continue;
+						
+						 totalSize += (short) (4); // private object byte,extractable byte,key type byte,key size byte
+					     totalSize += (short) ( 1 + sko.commonObjectAttributes.label.val.length );
+					     totalSize += (short) ( 1 + sko.classAtributes.iD.val.length);
+					     
+					}
+	
+					IODataManager.prepareBuffer(totalSize); 
+					buffer = IODataManager.getBuffer();
+					buffer[offset++] = (byte) (i & 0x00FF);
+					
+					
+					for(i=(short)0;i<applet.secKeyDirFile.size;i++)
+					{
+						sko = applet.secKeyDirFile.getRecordAtIndex(i);
+					
+						if (sko.commonObjectAttributes.flags.privateFlag)
+							  if (isPrivate == false)
+							   {
+								  sko.encode();
+								  sko.freeMembers();
+								  continue;
+							   }
+						
+						buffer[offset++] = sko.commonObjectAttributes.flags.privateFlag ? (byte) 0xFF : (byte)0x00;
+						buffer[offset++] = sko.classAtributes.accessFlags.extractable ? (byte)0xFF : (byte)0x00;
+						buffer[offset++] = sko.keyType;
+						
+						if (sko.subClassAttributes.keyLen.val[0] == (byte)0x40)
+							   buffer[offset++] = (byte) 0x40; //64 bit key size
+						else if (sko.subClassAttributes.keyLen.val[0] == (byte)0x80) 
+							   buffer[offset++] = (byte) 0x80;// 128 bit key size
+						else if (sko.subClassAttributes.keyLen.val[0] == (byte)0xC0)
+							   buffer[offset++] = (byte) 0xC0;// 192 bit key size
+						else if (sko.subClassAttributes.keyLen.val[0] == (byte)0x01)
+							   buffer[offset++] = (byte) 0x00;// 256 bit key size
+						
+						
+						buffer[offset++] = (byte) ( sko.commonObjectAttributes.label.val.length & 0x00FF);
+					    IODataManager.setData(offset, sko.commonObjectAttributes.label.val, (short)0, (short)sko.commonObjectAttributes.label.val.length);
+					    offset += (short) sko.commonObjectAttributes.label.val.length;
+					    
+					    buffer[offset++] = (byte) ( sko.classAtributes.iD.val.length & 0x00FF);
+					    IODataManager.setData(offset, sko.classAtributes.iD.val, (short)0, (short)sko.classAtributes.iD.val.length);
+					    offset += (short) sko.classAtributes.iD.val.length;
+					    
+					    sko.encode();
+					    sko.freeMembers();
+						
+					}
+	
+					IODataManager.sendData(apdu);
+					
+	
+					break;
+	
+	case (byte)0x04://certificate object case
+					CertificateObject co = null;
+				
+					for (i=(short)0;i<applet.certDirFile.size;i++)
+					{
+						co = applet.certDirFile.getRecordAtIndex(i);
+						co.decode();
+						
+						if (co.commonObjectAttributes.flags.privateFlag)
+							  if (isPrivate == false)
+							   continue;
+						
+						 totalSize += (short) 1;//authority byte
+					     totalSize += (short) ( 1 + co.commonObjectAttributes.label.val.length );
+					     totalSize += (short) ( 1 + co.classAtributes.iD.val.length);
+					     
+					}
+		
+					
+					IODataManager.prepareBuffer(totalSize); 
+					buffer = IODataManager.getBuffer();
+					buffer[offset++] = (byte) (i & 0x00FF);
+					
+					
+					for(i=(short)0;i<applet.certDirFile.size;i++)
+					{
+						co = applet.certDirFile.getRecordAtIndex(i);
+					
+						buffer[offset++] = co.classAtributes.authority.val ? (byte)0xFF : (byte)0x00;
+						
+						buffer[offset++] = (byte) ( co.commonObjectAttributes.label.val.length & 0x00FF);
+					    IODataManager.setData(offset, co.commonObjectAttributes.label.val, (short)0, (short)co.commonObjectAttributes.label.val.length);
+					    offset += (short) co.commonObjectAttributes.label.val.length;
+					    
+					    buffer[offset++] = (byte) ( co.classAtributes.iD.val.length & 0x00FF);
+					    IODataManager.setData(offset, co.classAtributes.iD.val, (short)0, (short)co.classAtributes.iD.val.length);
+					    offset += (short) co.classAtributes.iD.val.length;
+					    
+					    co.encode();
+					    co.freeMembers();
+						
+					}
+	
+					IODataManager.sendData(apdu);
+					
+					break;
+					
+					
+	
+	default: ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
+	}
+	
+}
+	
+
+
+
 	
 /**
 * This method handles the LOGOUT command	
@@ -476,6 +749,7 @@ private static void importCertificate(PKCS15Applet applet,APDU apdu){
 
 
 /**
+ * This mehod handles the IMPORT_PRIVATE_PUBLIC_KEY command
  * @param applet PKCS15Apllet instance
  * @param apdu APDU structure
  * @param bytesReceived Number of bytes received, obtained with APDU.setIncomingAndReceive().
@@ -821,6 +1095,8 @@ private static void importSecretKey(PKCS15Applet applet,APDU apdu){
 	CommonKeyAttributes cka = new CommonKeyAttributes(keyID, kuf, nativ, kaf, ref);
 	
 	short keyLen=0;;
+	byte keyType = (byte) buffer[offset];
+	
 	switch(buffer[offset++]){
 	case 0x01: // AES key case
 		    if (buffer[offset] == (byte)0x80) // 128 bit key case
@@ -860,6 +1136,9 @@ private static void importSecretKey(PKCS15Applet applet,APDU apdu){
 	Util.arrayCopy(buffer, offset, keyValue.val, (short)0, (short)keyValue.val.length);
 	GenericSecretKeyAttributes gska = new GenericSecretKeyAttributes(keyValue);
     secObj = new SecretKeyObject(coa, cka, cska, gska);
+    if (keyType == (byte)0x01)
+    	 secObj.keyType = SecretKeyObject.SECRET_KEY_AES;
+    else secObj.keyType = SecretKeyObject.SECRET_KEY_DES;
 	
 	}
 	catch (Exception e){
@@ -1448,6 +1727,8 @@ private static void generateSecretKey(PKCS15Applet applet,APDU apdu){
 	CommonKeyAttributes cka = new CommonKeyAttributes(keyID, kuf, nativ, kaf, ref);
 	
 	short keyLen=0;;
+	byte keyType = (byte) buffer[offset];
+	
 	switch(buffer[offset++]){
 	case 0x01: // AES key case
 		    if (buffer[offset] == (byte)0x80) // 128 bit key case
@@ -1482,6 +1763,9 @@ private static void generateSecretKey(PKCS15Applet applet,APDU apdu){
 	randomGenerator.generateData(keyValue.val, (short)0, (short)keyValue.val.length);
 	GenericSecretKeyAttributes gska = new GenericSecretKeyAttributes(keyValue);
 	SecretKeyObject secObj = new SecretKeyObject(coa, cka, cska, gska);		
+	if (keyType == (byte)0x01)
+		  secObj.keyType = SecretKeyObject.SECRET_KEY_AES;
+	else secObj.keyType  = SecretKeyObject.SECRET_KEY_DES;
 	
 	applet.secKeyDirFile.addRecord(secObj);
 	

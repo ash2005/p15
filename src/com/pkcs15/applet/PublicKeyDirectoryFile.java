@@ -15,7 +15,7 @@ public class PublicKeyDirectoryFile {
 	/*This is the head of the list*/
 	public PublicKeyObjectEntry root = null;
 	
-	
+	public short size=0;
 	
 	/**
 	 * Implicit constructor
@@ -57,7 +57,7 @@ public class PublicKeyDirectoryFile {
 					PublicKeyObjectEntry newnode = new PublicKeyObjectEntry(obj);
 					node.next=newnode;
 				}
-			
+		size++;	
 		JCSystem.commitTransaction();
 		}
 		catch( SystemException e){
@@ -66,6 +66,33 @@ public class PublicKeyDirectoryFile {
 	    }
 		
 	}
+	
+	
+	/**
+	 * This method gets an specific PublicKeyObject from the public key directory file
+	 * @param index Index in the public key directory file
+	 * @return PublicKeyObject
+	 */
+	public PublicKeyObject getRecordAtIndex(short index){
+		   
+		   if ((index >= size) || (index < (short)0))
+			     return null;
+		   
+		   
+		   short it = (short)0;
+		   PublicKeyObjectEntry node = root;
+		   
+		   while (node != null){
+			   	  if (it == index)
+			   		    return node.obj;
+			   	  it++;
+			   	  node = node.next;
+		   }
+		   
+		   
+		   return null;
+	}
+	
 	
 	
 	/**
@@ -155,6 +182,7 @@ public class PublicKeyDirectoryFile {
 		    		if (JCSystem.isObjectDeletionSupported())
 		    			 JCSystem.requestObjectDeletion();
 		    		
+		    		size--;
 		    		JCSystem.commitTransaction();
 	    	   }
 	    	   
@@ -191,6 +219,7 @@ public class PublicKeyDirectoryFile {
 				 if (JCSystem.isObjectDeletionSupported())
 					 JCSystem.requestObjectDeletion();
 				 
+				 size--;
 				 JCSystem.commitTransaction();
 			 }
 			 

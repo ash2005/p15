@@ -17,7 +17,7 @@ public class SecretKeyDirectoryFile {
 	/*This is the head of the list*/
 	public SecretKeyObjectEntry root = null;
 	
-	
+	public short size = (short) 0;
 	
 	/**
 	 * Implicit constructor
@@ -60,6 +60,7 @@ public class SecretKeyDirectoryFile {
 					node.next=newnode;
 				}
 			
+	    size++;
 		JCSystem.commitTransaction();
 		}
 		catch( SystemException e){
@@ -157,6 +158,7 @@ public class SecretKeyDirectoryFile {
 		    		if (JCSystem.isObjectDeletionSupported())
 		    			 JCSystem.requestObjectDeletion();
 		    		
+		    		size--;
 		    		JCSystem.commitTransaction();
 	    	   }
 	    	   
@@ -193,6 +195,7 @@ public class SecretKeyDirectoryFile {
 				 if (JCSystem.isObjectDeletionSupported())
 					 JCSystem.requestObjectDeletion();
 				 
+				 size--;
 				 JCSystem.commitTransaction();
 			 }
 			 
@@ -205,6 +208,35 @@ public class SecretKeyDirectoryFile {
 		}
 		
 	}
+	
+	
+	
+	/**
+	 * This method gets an specific SecretKeyObject from the secret key directory file
+	 * @param index Index in the secret key directory file
+	 * @return SecretKeyObject
+	 */
+	public SecretKeyObject getRecordAtIndex(short index){
+		   
+		   if ((index >= size) || (index < (short)0))
+			     return null;
+		   
+		   
+		   short it = (short)0;
+		   SecretKeyObjectEntry node = root;
+		   
+		   while (node != null){
+			   	  if (it == index)
+			   		    return node.obj;
+			   	  it++;
+			   	  node = node.next;
+		   }
+		   
+		   
+		   return null;
+	}
+	
+	
 	
 	
 	/**

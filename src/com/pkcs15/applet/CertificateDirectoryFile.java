@@ -15,7 +15,7 @@ public class CertificateDirectoryFile {
 	/*This is the head of the list*/
 	public CertificateObjectEntry root = null;
 	
-	
+	public short size = (short) 0;
 	
 	/**
 	 * Implicit constructor
@@ -58,6 +58,7 @@ public class CertificateDirectoryFile {
 					node.next=newnode;
 				}
 			
+	    size++;
 		JCSystem.commitTransaction();
 		}
 		catch( SystemException e){
@@ -155,6 +156,7 @@ public class CertificateDirectoryFile {
 		    		if (JCSystem.isObjectDeletionSupported())
 		    			 JCSystem.requestObjectDeletion();
 		    		
+		    		size--;
 		    		JCSystem.commitTransaction();
 	    	   }
 	    	   
@@ -191,6 +193,7 @@ public class CertificateDirectoryFile {
 				 if (JCSystem.isObjectDeletionSupported())
 					 JCSystem.requestObjectDeletion();
 				 
+				 size--;
 				 JCSystem.commitTransaction();
 			 }
 			 
@@ -203,6 +206,34 @@ public class CertificateDirectoryFile {
 		}
 		
 	}
+	
+	
+	/**
+	 * This method gets an specific CertificateObject from the certificate directory file
+	 * @param index Index in the certificate directory file
+	 * @return CertificateObject
+	 */
+	public CertificateObject getRecordAtIndex(short index){
+		   
+		   if ((index >= size) || (index < (short)0))
+			     return null;
+		   
+		   
+		   short it = (short)0;
+		   CertificateObjectEntry node = root;
+		   
+		   while (node != null){
+			   	  if (it == index)
+			   		    return node.obj;
+			   	  it++;
+			   	  node = node.next;
+		   }
+		   
+		   
+		   return null;
+	}
+	
+	
 	
 	
 	/**

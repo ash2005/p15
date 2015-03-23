@@ -3,12 +3,20 @@ package com.pkcs15.applet;
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
+
+
+
 /**
  * @author Lupascu Alexandru
  * This class represents a ASN1 structure as defined in PCKS#15
  */
 public class SecretKeyObject extends ASN1Type {
 
+	public static final byte SECRET_KEY_DES = (byte)0x01;
+	public static final byte SECRET_KEY_AES = (byte)0x02;
+	
+	public byte keyType = (byte)0x00;
+	
 	
 	/*DER TAG for SEQUENCE*/
 	public final byte TAG = (byte)0x30;
