@@ -76,7 +76,7 @@ public class APDUDispatcher {
 	public static final byte INS_FIND_OBJECTS				   = (byte) 0x13;
 	
 	private static final byte INS_DEBUG = (byte)0xFF;
-	private static final byte INS_GET_MEMORY =(byte) 0xFE;
+
 	
 	
 	private static UniqueIDProvider idProvider = null;
@@ -185,21 +185,10 @@ public class APDUDispatcher {
 						case INS_FIND_OBJECTS: findObjects(applet,apdu);
 												break;
 						case INS_DEBUG: 
-																									    
-													
-												    
 													//IODataManager.prepareBuffer((short)data.length);
 												    //IODataManager.setData((short)0, data, (short)0,(short)data.length);
 													
 													break;
-						case INS_GET_MEMORY:		
-													
-							
-							                        short left = JCSystem.getAvailableMemory(JCSystem.MEMORY_TYPE_PERSISTENT);
-													buffer[0] = (byte) ((left>>8) & 0x00FF);
-													buffer[1] = (byte) (left & 0x00FF);
-													apdu.setOutgoingAndSend((short)0,(short)2);
-											    	break;
 											    	
 						default:		 			               ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);						 
 						}
@@ -1206,8 +1195,12 @@ private static void computeSignature(PKCS15Applet applet,APDU apdu){
 				    	 
 				    	 IODataManager.sendData(apdu);
 				    }
-				    
+				    catch(ISOException e){
+				    	 if (e.getReason() == ISO7816.SW_BYTES_REMAINING_00)
+				    		  ISOException.throwIt(ISO7816.SW_BYTES_REMAINING_00);
+				    }
 				    catch(Exception e){
+				    	 
 				    	 ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
 				    }
 				    
