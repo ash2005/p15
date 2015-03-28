@@ -1,5 +1,7 @@
 package com.pkcs15.applet;
 
+import javacard.framework.Util;
+
 
 /**
  * This class represents a ASN1 structure of Certificate as defined in X509 PKI and CRL Profile
@@ -21,7 +23,9 @@ public class Certificate extends ASN1Type{
      * @param enc Encoding of the certificate
      */
     public Certificate(byte[] enc){
-    	 encoding = enc;
+    	encoding = new byte[enc.length];
+    	Util.arrayCopy(enc,(short)0,encoding,(short)0,(short)enc.length);
+    	
     }
 	
     
@@ -39,8 +43,10 @@ public class Certificate extends ASN1Type{
 	 */
 	public void decode(){
 		
+		
 		short offset = 1;
 		short memberlen = 0;
+		
 		
 		short len = (short)findLengthEncodedLength(encoding, offset);
 		offset = (short) (offset + len);

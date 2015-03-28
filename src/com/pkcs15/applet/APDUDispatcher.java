@@ -587,10 +587,10 @@ private static void exportCertificate(PKCS15Applet applet,APDU apdu){
 		  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 	
 	
-	certObj.typeAttribute.value.encode();
+	
 	IODataManager.prepareBuffer((short)certObj.typeAttribute.value.encoding.length);
 	IODataManager.setData((short)0, certObj.typeAttribute.value.encoding, (short)0, (short) certObj.typeAttribute.value.encoding.length);
-	certObj.typeAttribute.value.decode();
+	
 	
 	IODataManager.sendData(apdu);
 	
@@ -674,13 +674,7 @@ private static void importCertificate(PKCS15Applet applet,APDU apdu){
 	    
 		Certificate certificate = new Certificate(IODataManager.getBuffer());
 		
-		try{
-		certificate.decode();
-		}
-		catch(Exception e){
-			ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-		}
-		
+				
 		X509CertificateAttributes xca = new X509CertificateAttributes(certificate);
 		
 		//Create CertificateObject
