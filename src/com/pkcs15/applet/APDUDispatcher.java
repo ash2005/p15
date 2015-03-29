@@ -216,11 +216,12 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 		  isPrivate = true;
 	else ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
 	
-	
+	short objNr =(short) 0;
 	switch(buffer[ISO7816.OFFSET_P1]){
-	
+
 	case (byte)0x01: // public key object case
 					PublicKeyObject puko =null;
+					
 					
 					for (i=(short)0;i<applet.pubKeyDirFile.size;i++)
 							{
@@ -230,7 +231,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 								if (puko.commonObjectAttributes.flags.privateFlag)
 									  if (isPrivate == false)
 									   continue;
-								
+								 objNr++;
 								 totalSize += (short) (3); // private object byte,extractable byte,key size byte
 							     totalSize += (short) ( 1 + puko.commonObjectAttributes.label.val.length );
 							     totalSize += (short) ( 1 + puko.classAtributes.iD.val.length);
@@ -239,7 +240,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 				
 					IODataManager.prepareBuffer(totalSize); 
 					buffer = IODataManager.getBuffer();
-					buffer[offset++] = (byte) (i & 0x00FF);
+					buffer[offset++] = (byte) (objNr & 0x00FF);
 					
 					for(i=(short)0;i<applet.pubKeyDirFile.size;i++)
 								{
@@ -277,6 +278,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 	case (byte)0x02:// private key object case
 		            PrivateKeyObject prko = null;
 	
+					
 					for (i=(short)0;i<applet.privKeyDirFile.size;i++)
 					{
 						prko = applet.privKeyDirFile.getRecordAtIndex(i);
@@ -285,7 +287,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 						if (prko.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
 							   continue;
-						
+						objNr++;
 						 totalSize += (short) (3); // private object byte,extractable byte,key size byte
 					     totalSize += (short) ( 1 + prko.commonObjectAttributes.label.val.length );
 					     totalSize += (short) ( 1 + prko.classAtributes.iD.val.length);
@@ -295,7 +297,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					
 					IODataManager.prepareBuffer(totalSize); 
 					buffer = IODataManager.getBuffer();
-					buffer[offset++] = (byte) (i & 0x00FF);
+					buffer[offset++] = (byte) (objNr & 0x00FF);
 					
 					
 					for(i=(short)0;i<applet.privKeyDirFile.size;i++)
@@ -342,7 +344,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 						if (sko.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
 							   continue;
-						
+						 objNr++;
 						 totalSize += (short) (4); // private object byte,extractable byte,key type byte,key size byte
 					     totalSize += (short) ( 1 + sko.commonObjectAttributes.label.val.length );
 					     totalSize += (short) ( 1 + sko.classAtributes.iD.val.length);
@@ -351,7 +353,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 	
 					IODataManager.prepareBuffer(totalSize); 
 					buffer = IODataManager.getBuffer();
-					buffer[offset++] = (byte) (i & 0x00FF);
+					buffer[offset++] = (byte) (objNr & 0x00FF);
 					
 					
 					for(i=(short)0;i<applet.secKeyDirFile.size;i++)
@@ -403,7 +405,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 						if (co.commonObjectAttributes.flags.privateFlag)
 							  if (isPrivate == false)
 							   continue;
-						
+						 objNr++;
 						 totalSize += (short) 1;//authority byte
 					     totalSize += (short) ( 1 + co.commonObjectAttributes.label.val.length );
 					     totalSize += (short) ( 1 + co.classAtributes.iD.val.length);
@@ -413,7 +415,7 @@ private static void findObjects(PKCS15Applet applet,APDU apdu){
 					
 					IODataManager.prepareBuffer(totalSize); 
 					buffer = IODataManager.getBuffer();
-					buffer[offset++] = (byte) (i & 0x00FF);
+					buffer[offset++] = (byte) (objNr & 0x00FF);
 					
 					
 					for(i=(short)0;i<applet.certDirFile.size;i++)
