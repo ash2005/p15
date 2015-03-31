@@ -35,7 +35,7 @@ public class APDUDispatcher {
 	
 	/* ISO7816 status words*/
 	public static final short ISO7816_SW_AUTH_BLOCKED = (short)0x6983;
-	public static final short ISO7816_SW_AUTH_FAILED  = (short)0x6300;
+	public static final short ISO7816_SW_AUTH_FAILED  = (short)0x63C0;
 	public static final short SW_REFERENCE_DATA_NOT_FOUND = (short) 0x6A88;	
 	public static final short SW_VOLATILE_MEMORY_UNAVAILABLE = (short)0x6386;
 	public static final short SW_LC_INCONSISTENT		     = (short)0x6A85;
