@@ -184,7 +184,7 @@ public class APDUDispatcher {
 												
 						case INS_FIND_OBJECTS: findObjects(applet,apdu);
 												break;
-						case INS_DEBUG: 
+						case INS_DEBUG:     byte[] test = new byte[1447];
 													//IODataManager.prepareBuffer((short)data.length);
 												    //IODataManager.setData((short)0, data, (short)0,(short)data.length);
 													
@@ -589,6 +589,7 @@ private static void exportCertificate(PKCS15Applet applet,APDU apdu){
 		  ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
 	
 	
+
 	
 	IODataManager.prepareBuffer((short)certObj.typeAttribute.value.encoding.length);
 	IODataManager.setData((short)0, certObj.typeAttribute.value.encoding, (short)0, (short) certObj.typeAttribute.value.encoding.length);
@@ -674,7 +675,10 @@ private static void importCertificate(PKCS15Applet applet,APDU apdu){
 		OctetString certId = new OctetString(id, (short)0, (short)id.length);
 		CommonCertificateAttributes cca = new CommonCertificateAttributes(certId, authorityFlag, identifier);
 	    
+	
+		
 		Certificate certificate = new Certificate(IODataManager.getBuffer());
+		
 		
 				
 		X509CertificateAttributes xca = new X509CertificateAttributes(certificate);
@@ -698,8 +702,8 @@ private static void importCertificate(PKCS15Applet applet,APDU apdu){
     		    ISOException.throwIt(ISO7816.SW_INCORRECT_P1P2);
     	 else if (e.getReason() == SW_REFERENCE_DATA_NOT_FOUND)
     		   ISOException.throwIt(SW_REFERENCE_DATA_NOT_FOUND);
-    	 else
-    		   ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
+    	 else		   
+    		 	 ISOException.throwIt(SW_INCORRECT_PARAMETERS_IN_DATA);
     }
 	
 	

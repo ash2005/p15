@@ -30,7 +30,7 @@ public class PKCS15Applet extends Applet {
 	
 	/* Initial Owner's PIN value*/
 	private static byte[] INITIAL_OWNER_PIN_VALUE  = {
-	(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+	(byte) 0x30, (byte) 0x30, (byte) 0x30, (byte) 0x30, // ASCII: "0000"
 	};
 	
 	public byte[] ownerPinAuthId = null;

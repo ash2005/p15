@@ -34,11 +34,7 @@ public class CertificateDirectoryFile {
 		
 	    if (root == null)
 	    {
-	    	  if (obj.isEncoded == true){
-	    		   obj.decode();
-	    		   obj.freeEncoding();
-	    	  }
-	    		  
+	    	     		  
 			  root = new CertificateObjectEntry(obj);
 	    }
 	    
@@ -49,10 +45,7 @@ public class CertificateDirectoryFile {
 						   node = node.next;
 					}
 					
-					if (obj.isEncoded == true){
-						 obj.decode();
-						 obj.freeEncoding();
-					}
+					
 					
 					CertificateObjectEntry newnode = new CertificateObjectEntry(obj);
 					node.next=newnode;
@@ -85,10 +78,6 @@ public class CertificateDirectoryFile {
 		
 		while(node != null){
 			
-			if (node.obj.isEncoded == true){
-				node.obj.decode();
-				node.obj.freeEncoding();
-			}
 			
 			match = areEqualIds(node.obj.classAtributes.iD.val, id);
 			
@@ -113,10 +102,7 @@ public class CertificateDirectoryFile {
 		if (root == null) 
 			return;
 		
-	    if (root.obj.isEncoded == true){
-	    	 root.obj.decode();
-	    	 root.obj.freeEncoding();
-	    }
+	 
 	    
 	    boolean match = areEqualIds(root.obj.classAtributes.iD.val, id);
 	    
@@ -151,10 +137,7 @@ public class CertificateDirectoryFile {
 		
 		while(node.next !=null){
 			
-			 if (node.next.obj.isEncoded == true){
-				   node.next.obj.decode();
-				   node.next.obj.freeEncoding();
-			 }
+			
 			 
 			 match = areEqualIds(node.next.obj.classAtributes.iD.val, id);
 			 
