@@ -1,9 +1,11 @@
 package com.pkcs15.applet;
 
-
-
-
 import javacard.framework.Util;
+
+
+
+
+
 
 
 /**
@@ -29,8 +31,7 @@ public class Certificate extends ASN1Type{
     	 
     	encoding = new byte[IODataManager.actualBufferSize];
     	byte[] ioBuffer = IODataManager.getBuffer();
-    	for (short i=0;i<IODataManager.actualBufferSize;i++)
-    		   encoding[i] = ioBuffer[i];
+    	Util.arrayCopyNonAtomic(ioBuffer, (short)0,encoding,(short)0, (short)ioBuffer.length);
     	
     }
 	

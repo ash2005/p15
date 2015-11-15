@@ -401,44 +401,45 @@ public final class FileSystem {
     /* PKCS#15 file system structure */
     public static final byte[] pkcs15FileSystemStructure = new byte[] {
     	
-    	/*Index 0 */	-1, // DF(MF)
+    	/*Index 0 */	-1, // DF
 				    	0x3F, 0x00, // File identifier for MF
 				    	-1, // no parent
 		     	    	1, 6, // one children at index 6
-		/*Index 6 */             	-1, // DF(PKCS#15)
+		/*Index 6 */             	-1, // DF
 							    	0x4D, 0x00, // File identifier for DF(PKCS#15) 
 							    	0, // parent at index 0
-							    	8, 19, 24, 29, 34, 39, 44, 49, 54,  // eight children at indexes: 19, 24, 29, 34, 39, 44, 49, 54  
+							    	8, 19, 24, 29, 34, 39, 44, 49, 54,  // eight children at indexes: 19, 24, 29, 34, 39,
+							    										// 44, 49, 54  
 									    	
-		/*Index 19 */						   	0 , // EF(ODF)
+		/*Index 19 */						   	0 , // EF
 										    	0x50, 0x31, // File identifier for EF(ODF)
 										    	6, 0,// parent at index 6, no SFI
 														    	
-		/*Index 24 */ 						 	0 , // EF(PrkDF)
+		/*Index 24 */ 						 	0 , // EF
 										    	0x4D, 0x01, // File identifier for EF(PrkDF)
 								    	    	6, 0, // parent at index 6, no SFI
 														    	
-		/*Index 29 */							0, // EF(PuKDF)
+		/*Index 29 */							0, // EF
 										    	0x4D, 0x02, // File identifier for EF(PuKDF)
 										    	6, 0, // parent at index 6 , no SFI
 														    	
-		/*Index 34 */						  	0, // EF(SKDF)
+		/*Index 34 */						  	0, // EF
 										    	0x4D, 0x03, // File identifier for EF(SKDF)
 										    	6, 0, // parent at index 6 , no SFI
 						
-		/*Index 39 */  							 0, // EF(CDF)
+		/*Index 39 */  							 0, // EF
 										    	0x4D, 0x04, // File identifier for EF(CDF)
 										    	6, 0, // parent at index 6 , no SFI
 														    	
-		/*Index 44 */ 						 	0, // EF(DODF)
+		/*Index 44 */ 						 	0, // EF
 										    	0x4D, 0x05, // File identifier for EF(DODF)
 										    	6, 0, // parent at index 6 , no SFI
 														    	
-		/*Index 49 */  							0, // EF(AODF)
+		/*Index 49 */  							0, // EF
 										    	0x4D, 0x06, // File identifier for EF(AODF)
 										    	6, 0, // parent at index 6 , no SFI
 														    	
-		/*Index 54 */							0, // EF(TokenInfo)
+		/*Index 54 */							0, // EF
 										    	0x50, 0x32, // File identifier for EF(TokenInfo)
 										    	6, 0 // parent at index 6 , no SFI
 												    	

@@ -30,7 +30,7 @@ public class IODataManager {
      
      
      /**
-      * This method does realloc the IO buffer if it is not already the size specified by parameter.
+      * This method reallocates the IO buffer if it is not already the size specified by parameter.
       * Reallocation of buffer is atomic. 
       * @param bufferSize Buffer size in bytes
       */

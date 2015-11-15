@@ -74,8 +74,7 @@ public class APDUDispatcher {
 	public static final byte INS_DELETE_OBJECT				   = (byte) 0x11;
 	public static final byte INS_LOGOUT						   = (byte) 0x12;
 	public static final byte INS_FIND_OBJECTS				   = (byte) 0x13;
-	
-	private static final byte INS_DEBUG = (byte)0xFF;
+
 
 	
 	
@@ -184,11 +183,6 @@ public class APDUDispatcher {
 												
 						case INS_FIND_OBJECTS: findObjects(applet,apdu);
 												break;
-						case INS_DEBUG:     byte[] test = new byte[1447];
-													//IODataManager.prepareBuffer((short)data.length);
-												    //IODataManager.setData((short)0, data, (short)0,(short)data.length);
-													
-													break;
 											    	
 						default:		 			               ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);						 
 						}
@@ -1761,6 +1755,7 @@ private static void verify(PKCS15Applet applet,APDU apdu,short bytesReceived){
 			  ISOException.throwIt(SW_REFERENCE_DATA_NOT_FOUND);
 		
 		
+		
 		if (pins[reference].check(apdu.getBuffer(),ISO7816.OFFSET_CDATA, pinBytes) == false)
 			   if (pins[reference].getTriesRemaining() == 0)
 				   	ISOException.throwIt(ISO7816_SW_AUTH_BLOCKED);
@@ -1809,7 +1804,7 @@ private static void doSetup(PKCS15Applet applet,APDU apdu){
 	
 		
 		try {
-			
+			    
 				
 				idProvider = new UniqueIDProvider();
 				randomGenerator =  RandomData.getInstance(RandomData.ALG_SECURE_RANDOM);
